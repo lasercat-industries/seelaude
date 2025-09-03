@@ -1,6 +1,14 @@
 await Bun.build({
-  entrypoints: ['./src/index.ts'],
-  tsconfig: './tsconfig.build.json',
-  outdir: 'dist',
+  entrypoints: ['./src/ui/index.ts'],
+  tsconfig: './src/ui/tsconfig.build.json',
+  outdir: 'dist/ui',
   external: ['react-dom', 'react'], // default: []
+});
+
+await Bun.build({
+  entrypoints: ['./src/api/index.ts'],
+  tsconfig: './src/api/tsconfig.build.json',
+  outdir: 'dist/server',
+  target: 'bun',
+  external: ['bun'], // default: []
 });

@@ -1,14 +1,14 @@
 {
   "extends": ["@lasercat/config/tsconfig.build.json"],
   "compilerOptions": {
+    "rootDir": "./",
+    "outDir": "../../dist/types/ui",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "outDir": "./dist/types/",
     "paths": {
-      "@api/*": ["./src/api/*"],
       "@ui/*": ["./src/ui/*"],
       "@shared/*": ["./src/shared/*"]
     },
     "jsx": "react"
   },
-  "include": ["${configDir}/src/index.ts"]
+  "include": ["index.ts"]
 }

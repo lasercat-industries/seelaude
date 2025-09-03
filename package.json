@@ -8,11 +8,19 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
+  
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
+    "./ui": {
+      "types": "./dist/types/ui/index.d.ts",
+      "browser": "./dist/ui/index.js",
+      "import": "./dist/ui/index.js",
+      "default": "./dist/ui/index.js"
+    },
+    "./api": {
+      "types": "./dist/types/server/index.d.ts",
+      "node": "./dist/server/index.js",
+      "import": "./dist/server/index.js",
+      "default": "./dist/server/index.js"
     },
     "./types": {
       "types": "./dist/types/index.d.ts"
@@ -37,7 +45,10 @@
   "homepage": "https://github.com/lasercat-industries/seelaude#readme",
   "scripts": {
     "prebuild": "bun run clean",
-    "build": "bun ./scripts/build.ts && bunx tsc --build --force tsconfig.build.json",
+    "build": "bun ./scripts/build.ts && bun run gentypes",
+    "gentypes": "bunx tsc --build --force tsconfig.build.json",
+    "gentypes:ui": "bunx tsc --build --force ./src/ui/tsconfig.build.json",
+    "gentypes:server": "bunx tsc --build --force ./src/api/tsconfig.build.json",
     "dev": "concurrently --kill-others-on-fail \"bun run dev:server\" \"bun run dev:client\" --names=api,ui -c cyan,magenta",
     "dev:client": "vite",
     "dev:server": "bun --watch run src/api/server.ts",
@@ -45,7 +56,7 @@
     "build:analyze": "bun run build && bunx source-map-explorer dist/*.js",
     "build:check": "bun run build && bunx publint && bunx attw --pack",
     "build:size": "bun run build && bunx size-limit",
-    "build:validate": "bun -e 'import(\"./dist/index.js\").then(() => console.log(\"✅ ESM import works\"))'",
+    "build:validate": "bun -e 'import(\"./dist/ui/index.js\").then(import(\"./dist/server/index.js\").then(() => console.log(\"✅ ESM import works\")))'",
     "clean": "bun run scripts/clean.ts",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path ./node_modules/@lasercat/config/.prettierignore",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path ./node_modules/@lasercat/config/.prettierignore",

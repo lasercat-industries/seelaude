@@ -1,0 +1,13 @@
+{
+  "extends": ["@lasercat/config/tsconfig.build.json"],
+  "compilerOptions": {
+    "rootDir": "./",
+    "outDir": "../../dist/types/server",
+    "lib": ["ESNext"],
+    "paths": {
+      "@api/ *": ["../src/api/*"],
+      "@shared/*": ["../src/shared/*"]
+    },
+  },
+  "include": ["index.ts"]
+}
