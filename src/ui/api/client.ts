@@ -1,5 +1,5 @@
 import { hc } from 'hono/client';
-import type { APIRoutes } from '@api/routes';
+import type { APIRoutes } from 'src/server/routes';
 
 // Create the RPC client with type safety
 export const apiClient = hc<APIRoutes>('/api');

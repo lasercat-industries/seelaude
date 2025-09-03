@@ -1,2 +1,2 @@
 export * from './ui/components/';
-export * from './api/';
+export * from './server';

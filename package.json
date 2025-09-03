@@ -1,6 +1,6 @@
 {
   "name": "@lasercat/seelaude",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "A template for react-typescript components",
   "author": "Ryland Goldstein",
   "license": "MIT",
@@ -16,7 +16,7 @@
       "import": "./dist/ui/index.js",
       "default": "./dist/ui/index.js"
     },
-    "./api": {
+    "./server": {
       "types": "./dist/types/server/index.d.ts",
       "node": "./dist/server/index.js",
       "import": "./dist/server/index.js",
@@ -48,10 +48,10 @@
     "build": "bun ./scripts/build.ts && bun run gentypes",
     "gentypes": "bunx tsc --build --force tsconfig.build.json",
     "gentypes:ui": "bunx tsc --build --force ./src/ui/tsconfig.build.json",
-    "gentypes:server": "bunx tsc --build --force ./src/api/tsconfig.build.json",
-    "dev": "concurrently --kill-others-on-fail \"bun run dev:server\" \"bun run dev:client\" --names=api,ui -c cyan,magenta",
+    "gentypes:server": "bunx tsc --build --force ./src/server/tsconfig.build.json",
+    "dev": "concurrently --kill-others-on-fail \"bun run dev:server\" \"bun run dev:client\" --names=server,ui -c cyan,magenta",
     "dev:client": "vite",
-    "dev:server": "bun --watch run src/api/server.ts",
+    "dev:server": "bun --watch run src/server/server.ts",
     "postbuild": "bun run build:validate",
     "build:analyze": "bun run build && bunx source-map-explorer dist/*.js",
     "build:check": "bun run build && bunx publint && bunx attw --pack",

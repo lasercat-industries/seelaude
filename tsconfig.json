@@ -4,7 +4,7 @@
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     // Path mappings for monorepo
     "paths": {
-      "@api/*": ["./src/api/*"],
+      "@api/*": ["./src/server/*"],
       "@ui/*": ["./src/ui/*"],
       "@shared/*": ["./src/shared/*"]
     },

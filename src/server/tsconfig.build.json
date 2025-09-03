@@ -5,7 +5,7 @@
     "outDir": "../../dist/types/server",
     "lib": ["ESNext"],
     "paths": {
-      "@api/ *": ["../src/api/*"],
+      "@api/ *": ["../src/server/*"],
       "@shared/*": ["../src/shared/*"]
     },
   },

@@ -6,7 +6,7 @@ await Bun.build({
 });
 
 await Bun.build({
-  entrypoints: ['./src/api/index.ts'],
+  entrypoints: ['./src/server/index.ts'],
   tsconfig: './src/api/tsconfig.build.json',
   outdir: 'dist/server',
   target: 'bun',
