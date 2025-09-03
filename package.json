@@ -1,6 +1,6 @@
 {
-  "name": "@lasercat/fullstack-lib-template",
-  "version": "1.0.2",
+  "name": "@lasercat/seelaude",
+  "version": "1.0.3",
   "description": "A template for react-typescript components",
   "author": "Ryland Goldstein",
   "license": "MIT",
@@ -29,12 +29,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/lasercat-industries/fullstack-lib-template.git"
+    "url": "https://github.com/lasercat-industries/seelaude.git"
   },
   "bugs": {
-    "url": "https://github.com/lasercat-industries/fullstack-lib-template/issues"
+    "url": "https://github.com/lasercat-industries/seelaude/issues"
   },
-  "homepage": "https://github.com/lasercat-industries/fullstack-lib-template#readme",
+  "homepage": "https://github.com/lasercat-industries/seelaude#readme",
   "scripts": {
     "prebuild": "bun run clean",
     "build": "bun ./scripts/build.ts && bunx tsc --build --force tsconfig.build.json",
