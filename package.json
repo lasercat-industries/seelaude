@@ -1,6 +1,6 @@
 {
   "name": "@lasercat/seelaude",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "A template for react-typescript components",
   "author": "Ryland Goldstein",
   "license": "MIT",
@@ -8,7 +8,6 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
-  
   "exports": {
     "./ui": {
       "types": "./dist/types/ui/index.d.ts",
@@ -97,5 +96,8 @@
     "react-router": "^7.x",
     "typescript": "^5.8.3",
     "hono": "4.x"
+  },
+  "dependencies": {
+    "@instantlyeasy/claude-code-sdk-ts": "^0.3.3"
   }
 }

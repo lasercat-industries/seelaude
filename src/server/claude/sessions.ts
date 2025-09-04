@@ -9,6 +9,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as readline from 'readline';
 import { createReadStream, statSync } from 'fs';
+import * as os from 'os';
 import type {
   Message,
   SessionData,
@@ -20,6 +21,7 @@ import type {
   SessionTreesResult,
   LatestSession,
   ContentItem,
+  SessionMessage,
 } from './types';
 
 import { isContentItemArray } from './types';
@@ -447,4 +449,59 @@ export async function getLatestSessions(
   }
 
   return latestSessions;
+}
+
+/**
+ * Get all messages for a specific session
+ * @param projectName - The encoded project name (e.g., "-Users-username-repos-project")
+ * @param sessionId - The UUID of the session to load messages for
+ * @param baseDir - Optional base directory (defaults to ~/.claude/projects)
+ * @returns Array of session messages sorted by timestamp
+ */
+export async function getSessionMessages(
+  projectName: string,
+  sessionId: string,
+  baseDir?: string,
+): Promise<SessionMessage[]> {
+  const projectDir = baseDir
+    ? path.join(baseDir, projectName)
+    : path.join(os.homedir(), '.claude', 'projects', projectName);
+  const messages: SessionMessage[] = [];
+
+  try {
+    const files = await fs.readdir(projectDir);
+    const jsonlFiles = files.filter((file) => file.endsWith('.jsonl'));
+
+    for (const file of jsonlFiles) {
+      const jsonlFile = path.join(projectDir, file);
+      const fileStream = createReadStream(jsonlFile);
+      const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity,
+      });
+
+      for await (const line of rl) {
+        if (line.trim()) {
+          try {
+            const entry = JSON.parse(line);
+            if (entry.sessionId === sessionId) {
+              messages.push(entry);
+            }
+          } catch {
+            // Skip invalid lines
+          }
+        }
+      }
+
+      rl.close();
+      fileStream.destroy();
+    }
+
+    // Sort messages by timestamp
+    messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  } catch (error) {
+    console.error(`Error reading messages for session ${sessionId}:`, error);
+  }
+
+  return messages;
 }

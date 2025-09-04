@@ -9,14 +9,7 @@
  * This tests loading projects, sessions, and messages from the Claude config directory
  */
 
-import {
-  getProjects,
-  getSessions,
-  getAllSessionsForProject,
-  getSessionMessages,
-  type ClaudeProject,
-} from './projects';
-import { extractTextFromContentItem } from './types';
+import { getProjects, getSessions, getAllSessionsForProject, type ClaudeProject } from './projects';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { fileURLToPath } from 'url';
@@ -177,97 +170,6 @@ async function testLoadSessions(projectName: string): Promise<void> {
 }
 
 /**
- * Test loading messages for a specific session
- */
-async function testLoadMessages(projectName: string, sessionId: string): Promise<void> {
-  console.log(
-    `${colors.yellow}▶ Test 3: Loading messages for session "${sessionId.substring(0, 8)}..."${colors.reset}`,
-  );
-
-  try {
-    const messages = await getSessionMessages(projectName, sessionId, TEST_BASE_DIR);
-    console.log(`${colors.green}✓ Loaded ${messages.length} messages${colors.reset}\n`);
-
-    if (messages.length > 0) {
-      // Show first and last few messages
-      const firstMessages = messages.slice(0, 2);
-      const lastMessages = messages.slice(-2);
-
-      console.log(`   ${colors.cyan}First messages:${colors.reset}`);
-      for (const msg of firstMessages) {
-        const content = msg.message?.content;
-        let text = '';
-
-        if (typeof content === 'string') {
-          text = content;
-        } else if (Array.isArray(content) && content.length > 0) {
-          const firstItem = content[0];
-          text = extractTextFromContentItem(firstItem);
-        }
-
-        console.log(
-          `   ${colors.dim}[${msg.type}] ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}${colors.reset}`,
-        );
-      }
-
-      if (messages.length > 4) {
-        console.log(`   ${colors.dim}... ${messages.length - 4} more messages ...${colors.reset}`);
-      }
-
-      if (messages.length > 2) {
-        console.log(`\n   ${colors.cyan}Last messages:${colors.reset}`);
-        for (const msg of lastMessages) {
-          const content = msg.message?.content;
-          let text = '';
-
-          if (typeof content === 'string') {
-            text = content;
-          } else if (Array.isArray(content) && content.length > 0) {
-            const firstItem = content[0];
-            text = extractTextFromContentItem(firstItem);
-          }
-
-          console.log(
-            `   ${colors.dim}[${msg.type}] ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}${colors.reset}`,
-          );
-        }
-      }
-
-      // Message statistics
-      const userMessages = messages.filter((m) => m.type === 'user').length;
-      const assistantMessages = messages.filter((m) => m.type === 'assistant').length;
-      const systemMessages = messages.filter((m) => m.type === 'system').length;
-
-      console.log(`\n   ${colors.cyan}Message Statistics:${colors.reset}`);
-      console.log(`   ${colors.dim}User messages: ${userMessages}${colors.reset}`);
-      console.log(`   ${colors.dim}Assistant messages: ${assistantMessages}${colors.reset}`);
-      console.log(`   ${colors.dim}System messages: ${systemMessages}${colors.reset}`);
-
-      // Time span
-      if (messages.length > 0) {
-        const firstMsg = messages[0];
-        const lastMsg = messages[messages.length - 1];
-        if (firstMsg && lastMsg) {
-          const firstTime = new Date(firstMsg.timestamp);
-          const lastTime = new Date(lastMsg.timestamp);
-          const duration = lastTime.getTime() - firstTime.getTime();
-          const hours = Math.floor(duration / (1000 * 60 * 60));
-          const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
-
-          console.log(`   ${colors.dim}Time span: ${hours}h ${minutes}m${colors.reset}`);
-        }
-      }
-    }
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error(`${colors.red}❌ Failed to load messages: ${error.message}${colors.reset}`);
-    } else {
-      console.error(`${colors.red}❌ Failed to load messages${colors.reset}`);
-    }
-  }
-}
-
-/**
  * Test filesystem checks
  */
 async function testFilesystem(): Promise<void> {
@@ -354,15 +256,6 @@ async function runAllTests(): Promise<void> {
       if (firstProject) {
         await testLoadSessions(firstProject.name);
         console.log();
-
-        // Test 3: Load messages for the first session (if any exist)
-        if (firstProject.sessions.length > 0) {
-          const firstSession = firstProject.sessions[0];
-          if (firstSession) {
-            await testLoadMessages(firstProject.name, firstSession.id);
-            console.log();
-          }
-        }
       }
     }
 
