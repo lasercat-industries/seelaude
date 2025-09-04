@@ -12,9 +12,6 @@ import type { ClaudeSession, ClaudeProject, SessionMessage, ContentItem } from '
 
 import { isContentItemArray, isNodeError } from '@shared/claude/types';
 
-// Re-export types for backward compatibility
-export type { ClaudeSession, ClaudeProject, SessionMessage };
-
 /**
  * Extract the actual project directory path from encoded project name
  * by reading the first JSONL entry that contains the cwd field

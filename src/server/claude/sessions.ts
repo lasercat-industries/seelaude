@@ -17,7 +17,6 @@ import type {
   BranchEndpoint,
   ForkPoint,
   BranchInfo,
-  SessionTree,
   SessionTreesResult,
   LatestSession,
   ContentItem,
@@ -25,19 +24,6 @@ import type {
 } from '@shared/claude/types';
 
 import { isContentItemArray } from '@shared/claude/types';
-
-// Re-export types for backward compatibility
-export type {
-  Message,
-  SessionData,
-  SessionNode,
-  BranchEndpoint,
-  ForkPoint,
-  BranchInfo,
-  SessionTree,
-  SessionTreesResult,
-  LatestSession,
-};
 
 /**
  * Extract all message UUIDs and content from a session file
