@@ -9,7 +9,8 @@
  * This tests loading projects, sessions, and messages from the Claude config directory
  */
 
-import { getProjects, getSessions, getAllSessionsForProject, type ClaudeProject } from './projects';
+import { getProjects, getSessions, getAllSessionsForProject } from './projects';
+import type { ClaudeProject } from '@shared/claude/types';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { fileURLToPath } from 'url';

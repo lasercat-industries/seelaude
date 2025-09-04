@@ -11,7 +11,7 @@
  */
 
 import { getSessionTreesJSON, getLatestSessions, extractSessionData } from './sessions';
-import type { SessionNode } from './types';
+import type { SessionNode } from '@shared/claude/types';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { fileURLToPath } from 'url';

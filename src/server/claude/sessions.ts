@@ -22,9 +22,9 @@ import type {
   LatestSession,
   ContentItem,
   SessionMessage,
-} from './types';
+} from '@shared/claude/types';
 
-import { isContentItemArray } from './types';
+import { isContentItemArray } from '@shared/claude/types';
 
 // Re-export types for backward compatibility
 export type {

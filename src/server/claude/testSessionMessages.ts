@@ -11,8 +11,8 @@
 
 import { getSessionMessages } from './sessions';
 import { getProjects } from './projects';
-import type { SessionMessage } from './types';
-import { extractTextFromContentItem, isContentItemArray } from './types';
+import type { SessionMessage } from '@shared/claude/types';
+import { extractTextFromContentItem, isContentItemArray } from '../../shared/claude/types';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { fileURLToPath } from 'url';
