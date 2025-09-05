@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Interface Demo - Phase 1</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Ensure dark mode works */
+    @media (prefers-color-scheme: dark) {
+      html {
+        color-scheme: dark;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module">
+    // This would normally be bundled, but for demo purposes we'll note
+    // that the app needs to be built with:
+    // bun build src/ui/chat-demo-entry.tsx --outdir=dist
+  </script>
+</body>
+</html>

@@ -98,6 +98,9 @@
     "hono": "4.x"
   },
   "dependencies": {
-    "@instantlyeasy/claude-code-sdk-ts": "^0.3.3"
+    "@instantlyeasy/claude-code-sdk-ts": "^0.3.3",
+    "date-fns": "^4.1.0",
+    "react-dropzone": "^14.3.8",
+    "react-markdown": "^10.1.0"
   }
 }
