@@ -1,54 +1,14 @@
-import { claude } from '@instantlyeasy/claude-code-sdk-ts';
+import { claude, createTokenStream } from '@instantlyeasy/claude-code-sdk-ts';
 import type {
-  ToolName,
-  PermissionMode,
   Message,
-  CLIOutput,
 } from '@instantlyeasy/claude-code-sdk-ts';
+import type {
+  WebSocket,
+  WebSocketMessage
+} from '@shared/types';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Duplex, Writable } from 'stream';
-
-interface ToolsSettings {
-  allowedTools?: ToolName[];
-  disallowedTools?: ToolName[];
-  skipPermissions?: boolean;
-}
-
-interface ImageData {
-  data: string; // base64 encoded image with data URL format (e.g., "data:image/png;base64,...")
-}
-
-interface SpawnClaudeOptions {
-  sessionId?: string;
-  projectPath?: string; // Not used in refactored version but kept for API compatibility
-  cwd?: string;
-  resume?: boolean;
-  toolsSettings?: ToolsSettings;
-  permissionMode?: PermissionMode; // 'default' | 'acceptEdits' | 'bypassPermissions'
-  images?: ImageData[];
-}
-
-interface WebSocket {
-  send: (data: string) => void;
-  readyState?: number;
-  close?: () => void;
-}
-
-interface WebSocketMessage {
-  type:
-    | 'session-created'
-    | 'claude-response'
-    | 'claude-error'
-    | 'claude-complete'
-    | 'claude-output';
-  sessionId?: string;
-  data?: Message | CLIOutput | unknown;
-  error?: string;
-  exitCode?: number;
-  isNewSession?: boolean;
-  tool?: unknown;
-}
 
 // Type guard to check if output is a WebSocket
 function isWebSocket(output: WebSocket | Writable | Duplex): output is WebSocket {
@@ -77,6 +37,15 @@ function sendMessage(output: WebSocket | Writable | Duplex, message: WebSocketMe
 
 const activeClaudeControllers = new Map<string, AbortController>(); // Track active abort controllers by session ID
 
+// export interface SpawnClaudeOptions {
+//   sessionId?: string;
+//   projectPath?: string; // Not used in refactored version but kept for API compatibility
+//   cwd?: string;
+//   resume?: boolean;
+//   toolsSettings?: ToolsSettings;
+//   permissionMode?: PermissionMode; // 'default' | 'acceptEdits' | 'bypassPermissions'
+//   images?: ImageData[];
+// }
 /**
  * Spawns a Claude session using the SDK
  * @param command - The command/prompt to send to Claude
@@ -155,6 +124,7 @@ async function spawnClaude(
     // Build the query using the SDK
     let query = claude().inDirectory(workingDir).withSignal(controller.signal);
 
+
     // If we have a sessionId, use it to resume the session
     // Otherwise, start a new session with a model
     if (sessionId) {
@@ -162,7 +132,7 @@ async function spawnClaude(
       query = query.withSessionId(sessionId);
     } else {
       // New session - set model
-      query = query.withModel('sonnet');
+      query = query.withModel('claude-opus-4-20250514');
     }
 
     // Configure permission mode based on SDK's PermissionMode
@@ -188,6 +158,7 @@ async function spawnClaude(
     // Set up message handlers to stream responses
     query = query
       .onMessage((msg: Message) => {
+        console.log(msg);
         // Send message to output
         sendMessage(output, {
           type: 'claude-response',

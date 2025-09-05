@@ -1,12 +1,15 @@
 import React from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ChatDemoNew } from './ChatDemoNew';
+import { WebSocketProvider } from './contexts/WebSocketContext';
 
 const App: React.FC = () => {
   return (
-    <ErrorBoundary>
-      <ChatDemoNew />
-    </ErrorBoundary>
+    <WebSocketProvider>
+      <ErrorBoundary>
+        <ChatDemoNew />
+      </ErrorBoundary>
+    </WebSocketProvider>
   );
 };
 

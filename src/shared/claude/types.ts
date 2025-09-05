@@ -1,3 +1,7 @@
+import type {
+  ToolName,
+  PermissionMode,
+} from '@instantlyeasy/claude-code-sdk-ts';
 /**
  * Shared type definitions for Claude API data structures
  * These types are used across multiple modules that parse Claude's JSONL files
@@ -254,3 +258,28 @@ export function extractTextFromContentItem(item: unknown): string {
 export function isNodeError(error: unknown): error is Error & { code?: string } {
   return error instanceof Error && 'code' in error;
 }
+export interface ToolsSettings {
+  allowedTools?: ToolName[];
+  disallowedTools?: ToolName[];
+  skipPermissions?: boolean;
+}
+
+export interface ImageData {
+  data: string; // base64 encoded image with data URL format (e.g., "data:image/png;base64,...")
+}
+
+export interface SpawnClaudeOptions {
+  sessionId?: string;
+  projectPath?: string; // Not used in refactored version but kept for API compatibility
+  cwd?: string;
+  resume?: boolean;
+  toolsSettings?: ToolsSettings;
+  permissionMode?: PermissionMode; // 'default' | 'acceptEdits' | 'bypassPermissions'
+  images?: ImageData[];
+}
+
+export type ClaudeCommandMessage = {
+  type: "claude-command";
+  command: string;
+  options: SpawnClaudeOptions;
+};
