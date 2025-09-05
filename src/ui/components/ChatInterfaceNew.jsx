@@ -161,7 +161,12 @@ const MessageComponent = memo(({ message, index, prevMessage, nextMessage, creat
   const isClaudeMessage = (msg) => 
     msg.type === 'assistant' || msg.type === 'tool' || msg.type === 'tool_result' || msg.type === 'hook_feedback' || msg.isToolUse;
   
-  const isGrouped = prevMessage && isClaudeMessage(prevMessage) && isClaudeMessage(message) && message.type !== 'user';
+  // For user messages, check if previous message was also a user message
+  // For Claude messages, check if previous message was also a Claude message
+  const isGrouped = message.type === 'user' 
+    ? (prevMessage && prevMessage.type === 'user')
+    : (prevMessage && isClaudeMessage(prevMessage) && isClaudeMessage(message));
+  
   const messageRef = React.useRef(null);
   const [isExpanded, setIsExpanded] = React.useState(false);
   React.useEffect(() => {
@@ -255,13 +260,15 @@ const MessageComponent = memo(({ message, index, prevMessage, nextMessage, creat
                 ))}
               </div>
             )}
-            <div className="text-xs text-blue-100 mt-1 text-right">
-              {new Date(message.timestamp).toLocaleTimeString()}
-            </div>
           </div>
           {!isGrouped && (
-            <div className="hidden sm:flex w-8 h-8 bg-blue-600 rounded-full items-center justify-center text-white text-sm flex-shrink-0">
-              U
+            <div className="hidden sm:flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0">
+                U
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {new Date(message.timestamp).toLocaleTimeString()}
+              </div>
             </div>
           )}
         </div>
@@ -295,11 +302,16 @@ const MessageComponent = memo(({ message, index, prevMessage, nextMessage, creat
                   )}
                 </div>
               )}
-              <div className="text-sm font-medium text-gray-900 dark:text-white">
-                {message.type === 'error' ? 'Error' : 
-                 message.type === 'tool' ? 'Tool' : 
-                 message.type === 'tool_result' ? 'Tool Result' :
-                 ((localStorage.getItem('selected-provider') || 'claude') === 'cursor' ? 'Cursor' : 'Claude')}
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                  {message.type === 'error' ? 'Error' : 
+                   message.type === 'tool' ? 'Tool' : 
+                   message.type === 'tool_result' ? 'Tool Result' :
+                   ((localStorage.getItem('selected-provider') || 'claude') === 'cursor' ? 'Cursor' : 'Claude')}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {new Date(message.timestamp).toLocaleTimeString()}
+                </div>
               </div>
             </div>
           )}
@@ -968,9 +980,6 @@ const MessageComponent = memo(({ message, index, prevMessage, nextMessage, creat
               </div>
             )}
             
-            <div className={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${isGrouped ? 'opacity-0 group-hover:opacity-100' : ''}`}>
-              {new Date(message.timestamp).toLocaleTimeString()}
-            </div>
           </div>
         </div>
       )}
