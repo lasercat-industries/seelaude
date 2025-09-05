@@ -156,7 +156,7 @@ const safeLocalStorage = {
 };
 
 // Memoized message component to prevent unnecessary re-renders
-const MessageComponent = memo(({ message, index, prevMessage, createDiff, onFileOpen, onShowSettings, autoExpandTools, showRawParameters }) => {
+const MessageComponent = memo(({ message, index, prevMessage, nextMessage, createDiff, onFileOpen, onShowSettings, autoExpandTools, showRawParameters }) => {
   // Group consecutive messages from Claude (assistant, tool uses, tool results, hook feedback)
   const isClaudeMessage = (msg) => 
     msg.type === 'assistant' || msg.type === 'tool' || msg.type === 'tool_result' || msg.type === 'hook_feedback' || msg.isToolUse;
@@ -233,49 +233,8 @@ const MessageComponent = memo(({ message, index, prevMessage, createDiff, onFile
           </div>
         </div>
       ) : message.type === 'tool_result' ? (
-        /* Tool result message */
-        <div className="w-full">
-          <div className="flex items-start gap-3 mb-3">
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs flex-shrink-0 ${
-              message.isError 
-                ? 'bg-red-500 dark:bg-red-600'
-                : 'bg-green-500 dark:bg-green-600'
-            }`}>
-              {message.isError ? '✗' : '✓'}
-            </div>
-            <div className="flex-1">
-              <details className="group">
-                <summary className={`cursor-pointer list-none ${
-                  message.isError 
-                    ? 'text-red-700 dark:text-red-300 hover:text-red-800 dark:hover:text-red-200'
-                    : 'text-gray-700 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-200'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                    <span className="text-sm font-medium">
-                      Tool Result
-                      {message.isError && <span className="text-red-600 dark:text-red-400 ml-2">(Error)</span>}
-                    </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-auto">
-                      {new Date(message.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                </summary>
-                <div className={`mt-2 text-sm rounded-lg p-3 ${
-                  message.isError 
-                    ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
-                    : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'
-                }`}>
-                  <pre className="whitespace-pre-wrap break-words font-mono text-xs">
-                    {message.content}
-                  </pre>
-                </div>
-              </details>
-            </div>
-          </div>
-        </div>
+        /* Tool result message - skip rendering as standalone, will be shown with tool use */
+        null
       ) : message.type === 'user' ? (
         /* User message bubble on the right */
         <div className="flex items-end space-x-0 sm:space-x-3 w-full sm:w-auto sm:max-w-[85%] md:max-w-md lg:max-w-lg xl:max-w-xl">
@@ -761,31 +720,52 @@ const MessageComponent = memo(({ message, index, prevMessage, createDiff, onFile
                   );
                 })()}
                 
-                {/* Tool Result Section */}
-                {message.toolResult && (
+                {/* Tool Result Section - check if next message is a tool result */}
+                {nextMessage && nextMessage.type === 'tool_result' && (
                   <div className="mt-3 border-t border-blue-200 dark:border-blue-700 pt-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className={`w-4 h-4 rounded flex items-center justify-center ${
-                        message.toolResult.isError 
-                          ? 'bg-red-500' 
-                          : 'bg-green-500'
+                    <details className="group">
+                      <summary className="cursor-pointer list-none hover:opacity-80">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4 transition-transform group-open:rotate-90 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                            <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                              nextMessage.isError 
+                                ? 'bg-red-500 dark:bg-red-600' 
+                                : 'bg-green-500 dark:bg-green-600'
+                            }`}>
+                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                {nextMessage.isError ? (
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                ) : (
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                )}
+                              </svg>
+                            </div>
+                            <span className={`text-sm font-medium ${
+                              nextMessage.isError 
+                                ? 'text-red-700 dark:text-red-300' 
+                                : 'text-green-700 dark:text-green-300'
+                            }`}>
+                              {nextMessage.isError ? 'Tool Error' : 'Tool Result'}
+                            </span>
+                          </div>
+                          <svg className="w-4 h-4 text-gray-400 group-open:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </summary>
+                      <div className={`mt-2 text-sm rounded-lg p-3 ${
+                        nextMessage.isError 
+                          ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
+                          : 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
                       }`}>
-                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          {message.toolResult.isError ? (
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          ) : (
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          )}
-                        </svg>
+                        <pre className="whitespace-pre-wrap break-words font-mono text-xs">
+                          {nextMessage.content}
+                        </pre>
                       </div>
-                      <span className={`text-sm font-medium ${
-                        message.toolResult.isError 
-                          ? 'text-red-700 dark:text-red-300' 
-                          : 'text-green-700 dark:text-green-300'
-                      }`}>
-                        {message.toolResult.isError ? 'Tool Error' : 'Tool Result'}
-                      </span>
-                    </div>
+                    </details>
                   </div>
                 )}
               </div>
@@ -3117,12 +3097,15 @@ function ChatInterface({ selectedProject, selectedSession, ws, sendMessage, mess
             {visibleMessages.map((message, index) => {
               const prevMessage = index > 0 ? visibleMessages[index - 1] : null;
               
+              const nextMessage = visibleMessages[index + 1];
+              
               return (
                 <MessageComponent
                   key={index}
                   message={message}
                   index={index}
                   prevMessage={prevMessage}
+                  nextMessage={nextMessage}
                   createDiff={createDiff}
                   onFileOpen={onFileOpen}
                   onShowSettings={onShowSettings}
