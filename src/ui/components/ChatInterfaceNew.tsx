@@ -17,16 +17,13 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
-import ReactMarkdown from 'react-markdown';
 import { useDropzone } from 'react-dropzone';
-import TodoList from './TodoList';
+import ReactMarkdown from 'react-markdown';
 import ClaudeLogo from './ClaudeLogo.jsx';
 import CursorLogo from './CursorLogo.jsx';
+import TodoList from './TodoList';
 import NextTaskBanner from './NextTaskBanner.jsx';
 import { useTasksSettings } from '../contexts/TasksSettingsContext';
-
-import ClaudeStatus from './ClaudeStatus';
-import { MicButton } from './MicButton.jsx';
 import { api, authenticatedFetch } from '../utils/api';
 
 
@@ -156,7 +153,8 @@ const safeLocalStorage = {
 };
 
 // Memoized message component to prevent unnecessary re-renders
-const MessageComponent = memo(({ message, index, prevMessage, nextMessage, createDiff, onFileOpen, onShowSettings, autoExpandTools, showRawParameters }) => {
+// eslint-disable-next-line no-unused-vars
+const MessageComponent = memo(({ message, prevMessage, nextMessage, createDiff, onFileOpen, onShowSettings, autoExpandTools, showRawParameters }) => {
   // Group consecutive messages from Claude (assistant, tool uses, tool results, hook feedback)
   const isClaudeMessage = (msg) => 
     msg.type === 'assistant' || msg.type === 'tool' || msg.type === 'tool_result' || msg.type === 'hook_feedback' || msg.isToolUse;
@@ -988,6 +986,7 @@ const MessageComponent = memo(({ message, index, prevMessage, nextMessage, creat
 });
 
 // ImageAttachment component for displaying image previews
+// eslint-disable-next-line no-unused-vars
 const ImageAttachment = ({ file, onRemove, uploadProgress, error }) => {
   const [preview, setPreview] = useState(null);
   
@@ -1032,7 +1031,7 @@ const ImageAttachment = ({ file, onRemove, uploadProgress, error }) => {
 // - onReplaceTemporarySession: Called to replace temporary session ID with real WebSocket session ID
 //
 // This ensures uninterrupted chat experience by pausing sidebar refreshes during conversations.
-function ChatInterface({ selectedProject, selectedSession, ws, sendMessage, messages, onFileOpen, onInputFocusChange, onSessionActive, onSessionInactive, onReplaceTemporarySession, onNavigateToSession, onShowSettings, autoExpandTools, showRawParameters, autoScrollToBottom, sendByCtrlEnter, onTaskClick, onShowAllTasks }) {
+function ChatInterface({ selectedProject, selectedSession, sendMessage, messages, onFileOpen, onInputFocusChange, onSessionActive, onSessionInactive, onReplaceTemporarySession, onNavigateToSession, onShowSettings, autoExpandTools, showRawParameters, autoScrollToBottom, sendByCtrlEnter, onShowAllTasks }) {
   const { tasksEnabled } = useTasksSettings();
   const [input, setInput] = useState(() => {
     if (typeof window !== 'undefined' && selectedProject) {
@@ -1068,7 +1067,6 @@ function ChatInterface({ selectedProject, selectedSession, ws, sendMessage, mess
   // Streaming throttle buffers
   const streamBufferRef = useRef('');
   const streamTimerRef = useRef(null);
-  const [debouncedInput, setDebouncedInput] = useState('');
   const [showFileDropdown, setShowFileDropdown] = useState(false);
   const [fileList, setFileList] = useState([]);
   const [filteredFiles, setFilteredFiles] = useState([]);
@@ -1078,12 +1076,12 @@ function ChatInterface({ selectedProject, selectedSession, ws, sendMessage, mess
   const [canAbortSession, setCanAbortSession] = useState(false);
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
   const scrollPositionRef = useRef({ height: 0, top: 0 });
-  const [showCommandMenu, setShowCommandMenu] = useState(false);
-  const [slashCommands, setSlashCommands] = useState([]);
-  const [filteredCommands, setFilteredCommands] = useState([]);
+  // const [showCommandMenu, setShowCommandMenu] = useState(false);
+  // const [slashCommands, setSlashCommands] = useState([]);
+  // const [filteredCommands, setFilteredCommands] = useState([]);
   const [isTextareaExpanded, setIsTextareaExpanded] = useState(false);
-  const [selectedCommandIndex, setSelectedCommandIndex] = useState(-1);
-  const [slashPosition, setSlashPosition] = useState(-1);
+  // const [selectedCommandIndex, setSelectedCommandIndex] = useState(-1);
+  // const [slashPosition, setSlashPosition] = useState(-1);
   const [visibleMessageCount, setVisibleMessageCount] = useState(100);
   const [claudeStatus, setClaudeStatus] = useState(null);
   const [provider, setProvider] = useState(() => {
@@ -1562,7 +1560,7 @@ function ChatInterface({ selectedProject, selectedSession, ws, sendMessage, mess
     }
     
     // Second pass: process messages and attach tool results to tool uses
-    const toolUseMessages = new Map(); // Track tool use messages by ID
+    // const toolUseMessages = new Map(); // Track tool use messages by ID
     for (const msg of rawMessages) {
       // Check if this is a hook feedback message
       const isHookFeedback = msg.message?.role === 'user' && 
@@ -2162,7 +2160,7 @@ function ChatInterface({ selectedProject, selectedSession, ws, sendMessage, mess
             toolInput: latestMessage.input
           }]);
           break;
-        
+          
         case 'cursor-error':
           // Show Cursor errors as error messages in chat
           setChatMessages(prev => [...prev, {
@@ -2418,7 +2416,7 @@ function ChatInterface({ selectedProject, selectedSession, ws, sendMessage, mess
   // Debounced input handling
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedInput(input);
+      // setDebouncedInput(input);
     }, 150); // 150ms debounce
     
     return () => clearTimeout(timer);
@@ -2874,12 +2872,12 @@ function ChatInterface({ selectedProject, selectedSession, ws, sendMessage, mess
 
 
 
-  const handleNewSession = () => {
-    setChatMessages([]);
-    setInput('');
-    setIsLoading(false);
-    setCanAbortSession(false);
-  };
+  // const handleNewSession = () => {
+  //   setChatMessages([]);
+  //   setInput('');
+  //   setIsLoading(false);
+  //   setCanAbortSession(false);
+  // };
   
   const handleAbortSession = () => {
     if (currentSessionId && canAbortSession) {
@@ -3112,7 +3110,6 @@ function ChatInterface({ selectedProject, selectedSession, ws, sendMessage, mess
                 <MessageComponent
                   key={index}
                   message={message}
-                  index={index}
                   prevMessage={prevMessage}
                   nextMessage={nextMessage}
                   createDiff={createDiff}
@@ -3160,15 +3157,6 @@ function ChatInterface({ selectedProject, selectedSession, ws, sendMessage, mess
       <div className={`p-2 sm:p-4 md:p-4 flex-shrink-0 ${
         isInputFocused ? 'pb-2 sm:pb-4 md:pb-6' : 'pb-16 sm:pb-4 md:pb-6'
       }`}>
-    
-        <div className="flex-1">
-              <ClaudeStatus 
-                status={claudeStatus}
-                isLoading={isLoading}
-                onAbort={handleAbortSession}
-                provider={provider}
-              />
-              </div>
         {/* Permission Mode Selector with scroll to bottom button - Above input, clickable for mobile */}
         <div className="max-w-4xl mx-auto mb-3">
           <div className="flex items-center justify-center gap-3">
@@ -3366,12 +3354,12 @@ function ChatInterface({ selectedProject, selectedSession, ws, sendMessage, mess
             </button>
             
             {/* Mic button - HIDDEN */}
-            <div className="absolute right-16 sm:right-16 top-1/2 transform -translate-y-1/2" style={{ display: 'none' }}>
+            {/* <div className="absolute right-16 sm:right-16 top-1/2 transform -translate-y-1/2" style={{ display: 'none' }}>
               <MicButton 
                 onTranscript={handleTranscript}
                 className="w-10 h-10 sm:w-10 sm:h-10"
               />
-            </div>
+            </div> */}
             {/* Send button */}
             <button
               type="submit"

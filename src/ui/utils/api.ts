@@ -6,7 +6,7 @@ let cachedMessages: any[] | null = null;
 // Mock API utilities for demo
 export const api = {
   // Mock sessionMessages endpoint that returns JSONL data
-  sessionMessages: async (projectName: string, sessionId: string, limit: number = 50, offset: number = 0) => {
+  sessionMessages: async (_projectName: string, _sessionId: string, limit: number = 50, offset: number = 0) => {
     // Load and cache messages from JSONL file
     if (!cachedMessages) {
       cachedMessages = await loadPerloxSession();
@@ -25,7 +25,7 @@ export const api = {
       json: async () => ({
         messages: paginatedMessages,
         hasMore: hasMore,
-        total: cachedMessages.length
+        total: cachedMessages?.length || 0
       })
     };
   }
