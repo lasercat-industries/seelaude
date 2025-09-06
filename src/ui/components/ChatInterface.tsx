@@ -35,6 +35,9 @@ import type { Message, AssistantMessage } from '@instantlyeasy/claude-code-sdk-t
 import type {
   ClaudeResponseData,
   ClaudeStatusData,
+  StreamingMessageData,
+  ToolResultMessage,
+  UserMessageWithToolResults,
 } from './cursor-types.js';
 
 // Safe localStorage utility to handle quota exceeded errors
@@ -834,7 +837,7 @@ function ChatInterface({
           
           // Check if this is a streaming message (has delta or is content_block_stop)
           if (rawData && typeof rawData === 'object' && 'type' in rawData && 
-              ((rawData as any).type === 'content_block_delta' || (rawData as any).type === 'content_block_stop')) {
+              ((rawData as StreamingMessageData).type === 'content_block_delta' || (rawData as StreamingMessageData).type === 'content_block_stop')) {
             const responseData = rawData as ClaudeResponseData;
             if (responseData.type === 'content_block_delta' && responseData.delta?.text) {
               // Buffer deltas and flush periodically to reduce rerenders
@@ -913,7 +916,7 @@ function ChatInterface({
           
           // Handle tool_result messages that come through claude-response
           if (typedMessage && typedMessage.type === 'tool_result') {
-            const resultContent = (typedMessage as any).content?.[0];
+            const resultContent = (typedMessage as ToolResultMessage).content?.[0];
             
             if (resultContent?.tool_use_id) {
               // This is a tool result - add it as a separate message
@@ -929,7 +932,7 @@ function ChatInterface({
               // This is hook feedback - add as a new message
               setChatMessages(prev => [...prev, {
                 type: 'hook_feedback' as const,
-                content: resultContent.text,
+                content: resultContent.text || '',
                 timestamp: new Date().toISOString(),
                 sessionId: currentSessionId || 'temp',
               }]);
@@ -972,9 +975,9 @@ function ChatInterface({
                 ]);
               }
             }
-          } else if (typedMessage && typeof (typedMessage as any).content === 'string' && (typedMessage as any).content.trim()) {
+          } else if (typedMessage && 'content' in typedMessage && typeof typedMessage.content === 'string' && typedMessage.content.trim()) {
             // Normalize usage limit message to local time
-            let content = formatUsageLimitText((typedMessage as any).content);
+            let content = formatUsageLimitText(typedMessage.content);
 
             // Add regular text message
             setChatMessages((prev) => [
@@ -989,8 +992,8 @@ function ChatInterface({
           }
 
           // Handle tool results from user messages (these come separately)
-          if (typedMessage && (typedMessage as any).role === 'user' && Array.isArray((typedMessage as any).content)) {
-            for (const part of (typedMessage as any).content) {
+          if (typedMessage && 'role' in typedMessage && typedMessage.role === 'user' && Array.isArray((typedMessage as UserMessageWithToolResults).content)) {
+            for (const part of (typedMessage as UserMessageWithToolResults).content) {
               if (part.type === 'tool_result') {
                 // Find the corresponding tool use and update it with the result
                 setChatMessages((prev) =>
@@ -1000,7 +1003,7 @@ function ChatInterface({
                         ...msg,
                         toolResult: {
                           content: part.content,
-                          isError: part.is_error,
+                          isError: part.is_error || false,
                           timestamp: new Date().toISOString(),
                         },
                       };
