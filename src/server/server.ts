@@ -1,16 +1,16 @@
 import { Hono } from 'hono';
-import { spawnClaude, abortClaudeSession } from './claude/spawnClaude';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { api } from './routes';
 import { isProduction } from './utilities';
 import { env } from '@shared/environment';
+import { spawnClaude, abortClaudeSession } from './claude/spawnClaude';
 import { upgradeWebSocket, websocket } from 'hono/bun';
 
-const connectedClients = new Set();
 export const app = new Hono<{ Bindings: { PORT?: string } }>();
 const port = env.port;
 
+const connectedClients = new Set();
 export const runtime = 'edge';
 
 if (!isProduction) {

@@ -80,7 +80,6 @@ export interface MessageComponentProps {
 }
 
 // Memoized message component to prevent unnecessary re-renders
-// eslint-disable-next-line no-unused-vars
 export const MessageComponent = memo<MessageComponentProps>(
   ({
     message,
@@ -370,11 +369,12 @@ export const MessageComponent = memo<MessageComponentProps>(
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    onFileOpen &&
+                                    if (onFileOpen) {
                                       onFileOpen(input.file_path, {
                                         old_string: input.old_string,
                                         new_string: input.new_string,
                                       });
+                                    }
                                   }}
                                   className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-mono"
                                 >
@@ -439,7 +439,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                             </details>
                           );
                         }
-                      } catch (e) {
+                      } catch {
                         // Fall back to raw display if parsing fails
                       }
                       return (
@@ -553,7 +553,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                               </details>
                             );
                           }
-                        } catch (e) {
+                        } catch {
                           // Fall back to regular display
                         }
                       }
@@ -605,7 +605,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                               </details>
                             );
                           }
-                        } catch (e) {
+                        } catch {
                           // Fall back to regular display
                         }
                       }
@@ -672,7 +672,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                               </div>
                             </details>
                           );
-                        } catch (e) {
+                        } catch {
                           // Fall back to regular display
                         }
                       }
@@ -696,7 +696,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                               </div>
                             );
                           }
-                        } catch (e) {
+                        } catch {
                           // Fall back to regular display
                         }
                       }
@@ -732,7 +732,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                                   </a>
                                 </summary>
                                 <div className="mt-3 space-y-3">
-                                  {input.edits.map((edit: any, index: number) => (
+                                  {input.edits.map((edit: DiffInfo, index: number) => (
                                     <div
                                       key={index}
                                       className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
@@ -778,7 +778,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                               </details>
                             );
                           }
-                        } catch (e) {
+                        } catch {
                           // Fall back to regular display if parsing fails
                         }
                       }
@@ -818,7 +818,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                               </details>
                             );
                           }
-                        } catch (e) {
+                        } catch {
                           // Fall back to regular display
                         }
                       }
@@ -1059,7 +1059,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                         📖 Read file
                       </div>
                     );
-                  } catch (e) {
+                  } catch {
                     return (
                       <div className="bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-300 dark:border-blue-600 pl-3 py-1 mb-2 text-sm text-blue-700 dark:text-blue-300">
                         📖 Read file
@@ -1085,7 +1085,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                       }
                     }
                     return null;
-                  } catch (e) {
+                  } catch {
                     return (
                       <div className="bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-300 dark:border-blue-600 pl-3 py-1 mb-2 text-sm text-blue-700 dark:text-blue-300">
                         📝 Update todo list
@@ -1116,7 +1116,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                     <div className="prose prose-sm max-w-none dark:prose-invert prose-gray [&_code]:!bg-transparent [&_code]:!p-0 [&_pre]:!bg-transparent [&_pre]:!border-0 [&_pre]:!p-0">
                       <ReactMarkdown
                         components={{
-                          code: ({ node, inline, className, children, ...props }: any) => {
+                          code: ({ inline, children, ...props }: { inline?: boolean; } & React.HTMLAttributes<HTMLDivElement>) => {
                             return inline ? (
                               <strong
                                 className="text-blue-600 dark:text-blue-400 font-bold not-prose"

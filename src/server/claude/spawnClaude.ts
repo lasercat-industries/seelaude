@@ -1,7 +1,7 @@
 import { claude } from '@instantlyeasy/claude-code-sdk-ts';
 import type { Message } from '@instantlyeasy/claude-code-sdk-ts';
 import type { WebSocket, WebSocketMessage } from '@shared/types';
-import type { SpawnClaudeOptions, ToolsSettings, ImageData } from '@shared/claude/types';
+import type { SpawnClaudeOptions } from '@shared/claude/types';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Duplex, Writable } from 'stream';
@@ -318,9 +318,4 @@ export {
   spawnClaude,
   abortClaudeSession,
   createStreamWrapper,
-  type SpawnClaudeOptions,
-  type ToolsSettings,
-  type ImageData,
-  type WebSocket,
-  type WebSocketMessage,
 };

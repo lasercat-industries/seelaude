@@ -1,8 +1,155 @@
 import { Hono } from 'hono';
 import { getSessionMessages } from './claude/sessions';
 import { getProjects, getSessions } from './claude/projects';
+import { upgradeWebSocket } from 'hono/bun';
+import { spawnClaude, abortClaudeSession } from './claude/spawnClaude';
 
 const PORT = process.env.PORT || 3000;
+const connectedClients = new Set();
+
+export const ws = upgradeWebSocket(() => {
+    return {
+      async onMessage(event, ws) {
+        try {
+          const raw = event.data;
+          let data;
+
+          if (typeof raw === 'string') {
+            // directly parse JSON string
+            data = JSON.parse(raw);
+            console.log('Parsed JSON:', data);
+          } else if (raw instanceof ArrayBuffer) {
+            // convert binary → string → JSON
+            const text = new TextDecoder().decode(raw);
+            data = JSON.parse(text);
+            console.log('Parsed JSON from ArrayBuffer:', data);
+          } else if (raw instanceof Uint8Array) {
+            const text = new TextDecoder().decode(raw);
+            data = JSON.parse(text);
+            console.log('Parsed JSON from Uint8Array:', data);
+          } else {
+            console.warn('Unsupported message type:', raw);
+            ws.send(
+              JSON.stringify({
+                type: 'error',
+                error: 'Unsupported message type:',
+              }),
+            );
+            return;
+          }
+
+          if (data.type === 'claude-command') {
+            console.log('💬 User message:', data.command || '[Continue/Resume]');
+            console.log('📁 Project:', data.options?.projectPath || 'Unknown');
+            console.log('🔄 Session:', data.options?.sessionId ? 'Resume' : 'New');
+            await spawnClaude(data.command, data.options, ws);
+          } else if (data.type === 'abort-session') {
+            console.log('🛑 Abort session request:', data.sessionId);
+            const provider = data.provider || 'claude';
+            const success = abortClaudeSession(data.sessionId);
+            ws.send(
+              JSON.stringify({
+                type: 'session-aborted',
+                sessionId: data.sessionId,
+                provider,
+                success,
+              }),
+            );
+          }
+        } catch (error) {
+          if (error instanceof Error) {
+            console.error('❌ Chat WebSocket error:', error.message);
+            ws.send(JSON.stringify({ type: 'error', error: error.message }));
+          } else {
+            console.error('❌ Chat WebSocket error:', error);
+            ws.send(JSON.stringify({ type: 'error', error: String(error) }));
+          }
+        }
+      },
+      onClose: (_evt, ws) => {
+        connectedClients.delete(ws);
+        console.log('Connection closed');
+      },
+      onOpen: (_evt, ws) => {
+        connectedClients.add(ws);
+        console.log('New WebSocket connection established');
+      },
+    };
+  });
+
+// export const ws = new Hono()
+// .get(
+//   '/ws',
+//   upgradeWebSocket(() => {
+//     return {
+//       async onMessage(event, ws) {
+//         try {
+//           const raw = event.data;
+//           let data;
+
+//           if (typeof raw === 'string') {
+//             // directly parse JSON string
+//             data = JSON.parse(raw);
+//             console.log('Parsed JSON:', data);
+//           } else if (raw instanceof ArrayBuffer) {
+//             // convert binary → string → JSON
+//             const text = new TextDecoder().decode(raw);
+//             data = JSON.parse(text);
+//             console.log('Parsed JSON from ArrayBuffer:', data);
+//           } else if (raw instanceof Uint8Array) {
+//             const text = new TextDecoder().decode(raw);
+//             data = JSON.parse(text);
+//             console.log('Parsed JSON from Uint8Array:', data);
+//           } else {
+//             console.warn('Unsupported message type:', raw);
+//             ws.send(
+//               JSON.stringify({
+//                 type: 'error',
+//                 error: 'Unsupported message type:',
+//               }),
+//             );
+//             return;
+//           }
+
+//           if (data.type === 'claude-command') {
+//             console.log('💬 User message:', data.command || '[Continue/Resume]');
+//             console.log('📁 Project:', data.options?.projectPath || 'Unknown');
+//             console.log('🔄 Session:', data.options?.sessionId ? 'Resume' : 'New');
+//             await spawnClaude(data.command, data.options, ws);
+//           } else if (data.type === 'abort-session') {
+//             console.log('🛑 Abort session request:', data.sessionId);
+//             const provider = data.provider || 'claude';
+//             const success = abortClaudeSession(data.sessionId);
+//             ws.send(
+//               JSON.stringify({
+//                 type: 'session-aborted',
+//                 sessionId: data.sessionId,
+//                 provider,
+//                 success,
+//               }),
+//             );
+//           }
+//         } catch (error) {
+//           if (error instanceof Error) {
+//             console.error('❌ Chat WebSocket error:', error.message);
+//             ws.send(JSON.stringify({ type: 'error', error: error.message }));
+//           } else {
+//             console.error('❌ Chat WebSocket error:', error);
+//             ws.send(JSON.stringify({ type: 'error', error: String(error) }));
+//           }
+//         }
+//       },
+//       onClose: (_evt, ws) => {
+//         connectedClients.delete(ws);
+//         console.log('Connection closed');
+//       },
+//       onOpen: (_evt, ws) => {
+//         connectedClients.add(ws);
+//         console.log('New WebSocket connection established');
+//       },
+//     };
+//   }),
+// );
 
 export const api = new Hono()
   .get('/check', (c) => {

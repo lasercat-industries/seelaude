@@ -101,6 +101,7 @@
     "@instantlyeasy/claude-code-sdk-ts": "^0.3.3",
     "@types/ws": "^8.18.1",
     "date-fns": "^4.1.0",
+    "lucide-react": "^0.542.0",
     "react-dropzone": "^14.3.8",
     "react-markdown": "^10.1.0",
     "ws": "^8.18.3"

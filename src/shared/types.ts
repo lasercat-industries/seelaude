@@ -29,7 +29,7 @@ export interface WebSocketMessage {
   exitCode?: number;
   isNewSession?: boolean;
   tool?: unknown;
-  input?: any; // For cursor-tool-use
+  input?: string; // For cursor-tool-use
 }
 
 export type AbortSessionMessage = {

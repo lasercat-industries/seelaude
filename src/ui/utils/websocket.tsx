@@ -5,10 +5,10 @@ export function useWebSocket() {
   const [ws, setWs] = useState<WebSocket>();
   const [messages, setMessages] = useState<WebSocketMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>(undefined);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
-    connect();
+    void connect();
 
     return () => {
       if (reconnectTimeoutRef.current) {
@@ -39,7 +39,7 @@ export function useWebSocket() {
           const apiPort = window.location.port === '3001' ? '3002' : window.location.port;
           wsBaseUrl = `${protocol}//${window.location.hostname}:${apiPort}`;
         }
-      } catch (error) {
+      } catch {
         console.warn(
           'Could not fetch server config, falling back to current host with API server port',
         );
@@ -73,7 +73,7 @@ export function useWebSocket() {
 
         // Attempt to reconnect after 3 seconds
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
+          void connect();
         }, 3000);
       };
 

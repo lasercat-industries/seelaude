@@ -20,7 +20,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone';
 import ClaudeLogo from './ClaudeLogo.js';
 import ClaudeStatus from './ClaudeStatus.js';
-import { api, authenticatedFetch } from '../utils/api.js';
+import { api } from '../utils/api.js';
 import { MessageComponent } from './MessageComponent.js';
 import type {
   ChatInterfaceProps,
@@ -31,10 +31,15 @@ import type {
   ImageAttachmentProps,
 } from './types.js';
 import type { SessionMessage } from '@shared/claude/types';
+import type { Message, AssistantMessage } from '@instantlyeasy/claude-code-sdk-ts';
+import type {
+  ClaudeResponseData,
+  ClaudeStatusData,
+} from './cursor-types.js';
 
 // Safe localStorage utility to handle quota exceeded errors
 const safeLocalStorage = {
-  setItem: (key: string, value: any) => {
+  setItem: (key: string, value: string) => {
     try {
       // For chat messages, implement compression and size limits
       if (key.startsWith('chat_messages_') && typeof value === 'string') {
@@ -170,7 +175,6 @@ function formatUsageLimitText(text: string | unknown): string | unknown {
 }
 
 // ImageAttachment component for displaying image previews
-// eslint-disable-next-line no-unused-vars
 const ImageAttachment = ({ file, onRemove, uploadProgress, error }: ImageAttachmentProps) => {
   const [preview, setPreview] = useState<string | null>(null);
 
@@ -235,7 +239,6 @@ function ChatInterface({
   onSessionActive,
   onSessionInactive,
   onReplaceTemporarySession,
-  onNavigateToSession,
   onShowSettings,
   autoExpandTools,
   showRawParameters,
@@ -277,7 +280,7 @@ function ChatInterface({
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   // Streaming throttle buffers
   const streamBufferRef = useRef<string>('');
-  const streamTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const streamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showFileDropdown, setShowFileDropdown] = useState<boolean>(false);
   const [fileList, setFileList] = useState<FileTreeNode[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<FileTreeNode[]>([]);
@@ -309,39 +312,10 @@ function ChatInterface({
     }
   }, [selectedSession]);
 
-  // Load Cursor default model from config
-  useEffect(() => {
-    if (provider === 'cursor') {
-      fetch('/api/cursor/config', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('auth-token')}`,
-        },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && data.config?.model?.modelId) {
-            // Map Cursor model IDs to our simplified names
-            const modelMap: Record<string, string> = {
-              'gpt-5': 'gpt-5',
-              'claude-4-sonnet': 'sonnet-4',
-              'sonnet-4': 'sonnet-4',
-              'claude-4-opus': 'opus-4.1',
-              'opus-4.1': 'opus-4.1',
-            };
-            const mappedModel = modelMap[data.config.model.modelId] || data.config.model.modelId;
-            if (!localStorage.getItem('cursor-model')) {
-              setCursorModel(mappedModel);
-            }
-          }
-        })
-        .catch((err) => console.error('Error loading Cursor config:', err));
-    }
-  }, [provider]);
-
   // Memoized diff calculation to prevent recalculating on every render
   const createDiff = useMemo(() => {
     const cache = new Map<string, Array<{ type: string; content: string | undefined; lineNum: number }>>();
-    return (oldStr: string, newStr: string): any => {
+    return (oldStr: string, newStr: string): Array<{ type: string; content: string | undefined; lineNum: number }> => {
       const key = `${oldStr.length}-${newStr.length}-${oldStr.slice(0, 50)}`;
       if (cache.has(key)) {
         return cache.get(key)!;
@@ -409,323 +383,6 @@ function ChatInterface({
       }
     },
     [messagesOffset],
-  );
-
-  // Load Cursor session messages from SQLite via backend
-  const loadCursorSessionMessages = useCallback(
-    async (projectPath: string, sessionId: string): Promise<any[]> => {
-      if (!projectPath || !sessionId) return [];
-      setIsLoadingSessionMessages(true);
-      try {
-        const url = `/api/cursor/sessions/${encodeURIComponent(sessionId)}?projectPath=${encodeURIComponent(projectPath)}`;
-        const res = await authenticatedFetch(url);
-        if (!res.ok) return [];
-        const data = await res.json();
-        const blobs = data?.session?.messages || [];
-        const converted = [];
-        const toolUseMap: Record<string, any> = {}; // Map to store tool uses by ID for linking results
-
-        // First pass: process all messages maintaining order
-        for (let blobIdx = 0; blobIdx < blobs.length; blobIdx++) {
-          const blob = blobs[blobIdx];
-          const content = blob.content;
-          let text = '';
-          let role = 'assistant';
-          let reasoningText = null; // Move to outer scope
-          try {
-            // Handle different Cursor message formats
-            if (content?.role && content?.content) {
-              // Direct format: {"role":"user","content":[{"type":"text","text":"..."}]}
-              // Skip system messages
-              if (content.role === 'system') {
-                continue;
-              }
-
-              // Handle tool messages
-              if (content.role === 'tool') {
-                // Tool result format - find the matching tool use message and update it
-                if (Array.isArray(content.content)) {
-                  for (const item of content.content) {
-                    if (item?.type === 'tool-result') {
-                      // Map ApplyPatch to Edit for consistency
-                      let toolName = item.toolName || 'Unknown Tool';
-                      if (toolName === 'ApplyPatch') {
-                        toolName = 'Edit';
-                      }
-                      const toolCallId = item.toolCallId || content.id;
-                      const result = item.result || '';
-
-                      // Store the tool result to be linked later
-                      if (toolUseMap[toolCallId]) {
-                        toolUseMap[toolCallId].toolResult = {
-                          content: result,
-                          isError: false,
-                        };
-                      } else {
-                        // No matching tool use found, create a standalone result message
-                        converted.push({
-                          type: 'assistant',
-                          content: '',
-                          timestamp: new Date(Date.now() + blobIdx * 1000),
-                          blobId: blob.id,
-                          sequence: blob.sequence,
-                          rowid: blob.rowid,
-                          isToolUse: true,
-                          toolName: toolName,
-                          toolId: toolCallId,
-                          toolInput: null,
-                          toolResult: {
-                            content: result,
-                            isError: false,
-                          },
-                        });
-                      }
-                    }
-                  }
-                }
-                continue; // Don't add tool messages as regular messages
-              } else {
-                // User or assistant messages
-                role = content.role === 'user' ? 'user' : 'assistant';
-
-                if (Array.isArray(content.content)) {
-                  // Extract text, reasoning, and tool calls from content array
-                  const textParts = [];
-
-                  for (const part of content.content) {
-                    if (part?.type === 'text' && part?.text) {
-                      textParts.push(part.text);
-                    } else if (part?.type === 'reasoning' && part?.text) {
-                      // Handle reasoning type - will be displayed in a collapsible section
-                      reasoningText = part.text;
-                    } else if (part?.type === 'tool-call') {
-                      // First, add any text/reasoning we've collected so far as a message
-                      if (textParts.length > 0 || reasoningText) {
-                        converted.push({
-                          type: role,
-                          content: textParts.join('\n'),
-                          reasoning: reasoningText,
-                          timestamp: new Date(Date.now() + blobIdx * 1000),
-                          blobId: blob.id,
-                          sequence: blob.sequence,
-                          rowid: blob.rowid,
-                        });
-                        textParts.length = 0;
-                        reasoningText = null;
-                      }
-
-                      // Tool call in assistant message - format like Claude Code
-                      // Map ApplyPatch to Edit for consistency with Claude Code
-                      let toolName = part.toolName || 'Unknown Tool';
-                      if (toolName === 'ApplyPatch') {
-                        toolName = 'Edit';
-                      }
-                      const toolId = part.toolCallId || `tool_${blobIdx}`;
-
-                      // Create a tool use message with Claude Code format
-                      // Map Cursor args format to Claude Code format
-                      let toolInput = part.args;
-
-                      if (toolName === 'Edit' && part.args) {
-                        // ApplyPatch uses 'patch' format, convert to Edit format
-                        if (part.args.patch) {
-                          // Parse the patch to extract old and new content
-                          const patchLines = part.args.patch.split('\n');
-                          let oldLines = [];
-                          let newLines = [];
-                          let inPatch = false;
-
-                          for (const line of patchLines) {
-                            if (line.startsWith('@@')) {
-                              inPatch = true;
-                            } else if (inPatch) {
-                              if (line.startsWith('-')) {
-                                oldLines.push(line.substring(1));
-                              } else if (line.startsWith('+')) {
-                                newLines.push(line.substring(1));
-                              } else if (line.startsWith(' ')) {
-                                // Context line - add to both
-                                oldLines.push(line.substring(1));
-                                newLines.push(line.substring(1));
-                              }
-                            }
-                          }
-
-                          const filePath = part.args.file_path;
-                          const absolutePath =
-                            filePath && !filePath.startsWith('/')
-                              ? `${projectPath}/${filePath}`
-                              : filePath;
-                          toolInput = {
-                            file_path: absolutePath,
-                            old_string: oldLines.join('\n') || part.args.patch,
-                            new_string: newLines.join('\n') || part.args.patch,
-                          };
-                        } else {
-                          // Direct edit format
-                          toolInput = part.args;
-                        }
-                      } else if (toolName === 'Read' && part.args) {
-                        // Map 'path' to 'file_path'
-                        // Convert relative path to absolute if needed
-                        const filePath = part.args.path || part.args.file_path;
-                        const absolutePath =
-                          filePath && !filePath.startsWith('/')
-                            ? `${projectPath}/${filePath}`
-                            : filePath;
-                        toolInput = {
-                          file_path: absolutePath,
-                        };
-                      } else if (toolName === 'Write' && part.args) {
-                        // Map fields for Write tool
-                        const filePath = part.args.path || part.args.file_path;
-                        const absolutePath =
-                          filePath && !filePath.startsWith('/')
-                            ? `${projectPath}/${filePath}`
-                            : filePath;
-                        toolInput = {
-                          file_path: absolutePath,
-                          content: part.args.contents || part.args.content,
-                        };
-                      }
-
-                      const toolMessage = {
-                        type: 'assistant',
-                        content: '',
-                        timestamp: new Date(Date.now() + blobIdx * 1000),
-                        blobId: blob.id,
-                        sequence: blob.sequence,
-                        rowid: blob.rowid,
-                        isToolUse: true,
-                        toolName: toolName,
-                        toolId: toolId,
-                        toolInput: toolInput ? JSON.stringify(toolInput) : null,
-                        toolResult: null, // Will be filled when we get the tool result
-                      };
-                      converted.push(toolMessage);
-                      toolUseMap[toolId] = toolMessage; // Store for linking results
-                    } else if (part?.type === 'tool_use') {
-                      // Old format support
-                      if (textParts.length > 0 || reasoningText) {
-                        converted.push({
-                          type: role,
-                          content: textParts.join('\n'),
-                          reasoning: reasoningText,
-                          timestamp: new Date(Date.now() + blobIdx * 1000),
-                          blobId: blob.id,
-                          sequence: blob.sequence,
-                          rowid: blob.rowid,
-                        });
-                        textParts.length = 0;
-                        reasoningText = null;
-                      }
-
-                      const toolName = part.name || 'Unknown Tool';
-                      const toolId = part.id || `tool_${blobIdx}`;
-
-                      const toolMessage = {
-                        type: 'assistant',
-                        content: '',
-                        timestamp: new Date(Date.now() + blobIdx * 1000),
-                        blobId: blob.id,
-                        sequence: blob.sequence,
-                        rowid: blob.rowid,
-                        isToolUse: true,
-                        toolName: toolName,
-                        toolId: toolId,
-                        toolInput: part.input ? JSON.stringify(part.input) : null,
-                        toolResult: null,
-                      };
-                      converted.push(toolMessage);
-                      toolUseMap[toolId] = toolMessage;
-                    } else if (typeof part === 'string') {
-                      textParts.push(part);
-                    }
-                  }
-
-                  // Add any remaining text/reasoning
-                  if (textParts.length > 0) {
-                    text = textParts.join('\n');
-                    if (reasoningText && !text) {
-                      // Just reasoning, no text
-                      converted.push({
-                        type: role,
-                        content: '',
-                        reasoning: reasoningText,
-                        timestamp: new Date(Date.now() + blobIdx * 1000),
-                        blobId: blob.id,
-                        sequence: blob.sequence,
-                        rowid: blob.rowid,
-                      });
-                      text = ''; // Clear to avoid duplicate
-                    }
-                  } else {
-                    text = '';
-                  }
-                } else if (typeof content.content === 'string') {
-                  text = content.content;
-                }
-              }
-            } else if (content?.message?.role && content?.message?.content) {
-              // Nested message format
-              if (content.message.role === 'system') {
-                continue;
-              }
-              role = content.message.role === 'user' ? 'user' : 'assistant';
-              if (Array.isArray(content.message.content)) {
-                text = content.message.content
-                  .map((p: any) => (typeof p === 'string' ? p : p?.text || ''))
-                  .filter(Boolean)
-                  .join('\n');
-              } else if (typeof content.message.content === 'string') {
-                text = content.message.content;
-              }
-            }
-          } catch (e) {
-            console.log('Error parsing blob content:', e);
-          }
-          if (text && text.trim()) {
-            const message: any = {
-              type: role,
-              content: text,
-              timestamp: new Date(Date.now() + blobIdx * 1000),
-              blobId: blob.id,
-              sequence: blob.sequence,
-              rowid: blob.rowid,
-            };
-
-            // Add reasoning if we have it
-            if (reasoningText) {
-              message.reasoning = reasoningText;
-            }
-
-            converted.push(message);
-          }
-        }
-
-        // Sort messages by sequence/rowid to maintain chronological order
-        converted.sort((a, b) => {
-          // First sort by sequence if available (clean 1,2,3... numbering)
-          if (a.sequence !== undefined && b.sequence !== undefined) {
-            return a.sequence - b.sequence;
-          }
-          // Then try rowid (original SQLite row IDs)
-          if (a.rowid !== undefined && b.rowid !== undefined) {
-            return a.rowid - b.rowid;
-          }
-          // Fallback to timestamp
-          return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
-        });
-
-        return converted;
-      } catch (e) {
-        console.error('Error loading Cursor session messages:', e);
-        return [];
-      } finally {
-        setIsLoadingSessionMessages(false);
-      }
-    },
-    [],
   );
 
   // Actual diff calculation function
@@ -851,7 +508,7 @@ function ChatInterface({
               } else {
                 content = msg.message.content;
               }
-            } catch (e) {
+            } catch {
               // Not valid JSON, treat as regular content
               content = msg.message.content;
             }
@@ -1042,24 +699,7 @@ function ChatInterface({
         setHasMoreMessages(false);
         setTotalMessages(0);
 
-        if (provider === 'cursor') {
-          // For Cursor, set the session ID for resuming
-          setCurrentSessionId(selectedSession.id);
-          sessionStorage.setItem('cursorSessionId', selectedSession.id);
-
-          // Only load messages from SQLite if this is NOT a system-initiated session change
-          // For system-initiated changes, preserve existing messages
-          if (!isSystemSessionChange) {
-            // Load historical messages for Cursor session from SQLite
-            const projectPath = selectedProject.fullPath || selectedProject.path;
-            const converted = await loadCursorSessionMessages(projectPath, selectedSession.id);
-            setSessionMessages([]);
-            setChatMessages(converted);
-          } else {
-            // Reset the flag after handling system session change
-            setIsSystemSessionChange(false);
-          }
-        } else {
+        if (provider === 'claude') {
           // For Claude, load messages normally with pagination
           setCurrentSessionId(selectedSession.id);
 
@@ -1097,11 +737,10 @@ function ChatInterface({
       }
     };
 
-    loadMessages();
+    void loadMessages();
   }, [
     selectedSession,
     selectedProject,
-    loadCursorSessionMessages,
     scrollToBottom,
     isSystemSessionChange,
   ]);
@@ -1109,7 +748,17 @@ function ChatInterface({
   // Initialize sessionMessages from messages prop when no session is selected (demo mode)
   useEffect(() => {
     if (!selectedSession && messages && messages.length > 0) {
-      setSessionMessages(messages as any);
+      // Convert WebSocketMessage[] to SessionMessage[] for demo mode
+      const convertedMessages: SessionMessage[] = messages.map(msg => ({
+        sessionId: msg.sessionId || 'demo',
+        type: 'assistant' as const,
+        message: {
+          role: 'assistant',
+          content: typeof msg.data === 'string' ? msg.data : JSON.stringify(msg.data)
+        },
+        timestamp: new Date().toISOString()
+      }));
+      setSessionMessages(convertedMessages);
     }
   }, [messages, selectedSession]);
 
@@ -1180,13 +829,14 @@ function ChatInterface({
           break;
 
         case 'claude-response': {
-          const messageData = (latestMessage.data as any).message || latestMessage.data;
+          const responseData = latestMessage.data as ClaudeResponseData;
+          const messageData = responseData?.message || latestMessage.data;
 
           // Handle Cursor streaming format (content_block_delta / content_block_stop)
-          if (messageData && typeof messageData === 'object' && messageData.type) {
-            if (messageData.type === 'content_block_delta' && messageData.delta?.text) {
+          if (responseData && responseData.type) {
+            if (responseData.type === 'content_block_delta' && responseData.delta?.text) {
               // Buffer deltas and flush periodically to reduce rerenders
-              streamBufferRef.current += messageData.delta.text;
+              streamBufferRef.current += responseData.delta.text;
               if (!streamTimerRef.current) {
                 streamTimerRef.current = setTimeout(() => {
                   const chunk = streamBufferRef.current;
@@ -1213,7 +863,7 @@ function ChatInterface({
               }
               return;
             }
-            if (messageData.type === 'content_block_stop') {
+            if (responseData.type === 'content_block_stop') {
               // Flush any buffered text and mark streaming message complete
               if (streamTimerRef.current) {
                 clearTimeout(streamTimerRef.current);
@@ -1250,71 +900,10 @@ function ChatInterface({
               return;
             }
           }
-
-          // Handle Claude CLI session duplication bug workaround:
-          // When resuming a session, Claude CLI creates a new session instead of resuming.
-          // We detect this by checking for system/init messages with session_id that differs
-          // from our current session. When found, we need to switch the user to the new session.
-          const cursorData = latestMessage.data as any;
-          if (
-            cursorData.type === 'system' &&
-            cursorData.subtype === 'init' &&
-            cursorData.session_id &&
-            currentSessionId &&
-            cursorData.session_id !== currentSessionId
-          ) {
-            console.log('🔄 Claude CLI session duplication detected:', {
-              originalSession: currentSessionId,
-              newSession: cursorData.session_id,
-            });
-
-            // Mark this as a system-initiated session change to preserve messages
-            setIsSystemSessionChange(true);
-
-            // Switch to the new session using React Router navigation
-            // This triggers the session loading logic in App.jsx without a page reload
-            if (onNavigateToSession) {
-              onNavigateToSession(cursorData.session_id);
-            }
-            return; // Don't process the message further, let the navigation handle it
-          }
-
-          // Handle system/init for new sessions (when currentSessionId is null)
-          if (
-            cursorData.type === 'system' &&
-            cursorData.subtype === 'init' &&
-            cursorData.session_id &&
-            !currentSessionId
-          ) {
-            console.log('🔄 New session init detected:', {
-              newSession: cursorData.session_id,
-            });
-
-            // Mark this as a system-initiated session change to preserve messages
-            setIsSystemSessionChange(true);
-
-            // Switch to the new session
-            if (onNavigateToSession) {
-              onNavigateToSession(cursorData.session_id);
-            }
-            return; // Don't process the message further, let the navigation handle it
-          }
-
-          // For system/init messages that match current session, just ignore them
-          if (
-            cursorData.type === 'system' &&
-            cursorData.subtype === 'init' &&
-            cursorData.session_id &&
-            currentSessionId &&
-            cursorData.session_id === currentSessionId
-          ) {
-            console.log('🔄 System init message for current session, ignoring');
-            return; // Don't process the message further
-          }
-
           // Handle different types of content in the response
-          if (Array.isArray(messageData.content)) {
-            for (const part of messageData.content) {
+          const typedMessage = messageData as Message;
+          if (typedMessage && 'content' in typedMessage && Array.isArray((typedMessage as AssistantMessage).content)) {
+            for (const part of (typedMessage as AssistantMessage).content) {
               if (part.type === 'tool_use') {
                 // Add tool use message
                 const toolInput = part.input ? JSON.stringify(part.input, null, 2) : '';
@@ -1348,9 +937,9 @@ function ChatInterface({
                 ]);
               }
             }
-          } else if (typeof messageData.content === 'string' && messageData.content.trim()) {
+          } else if (typedMessage && typeof (typedMessage as any).content === 'string' && (typedMessage as any).content.trim()) {
             // Normalize usage limit message to local time
-            let content = formatUsageLimitText(messageData.content);
+            let content = formatUsageLimitText((typedMessage as any).content);
 
             // Add regular text message
             setChatMessages((prev) => [
@@ -1365,8 +954,8 @@ function ChatInterface({
           }
 
           // Handle tool results from user messages (these come separately)
-          if (messageData.role === 'user' && Array.isArray(messageData.content)) {
-            for (const part of messageData.content) {
+          if (typedMessage && (typedMessage as any).role === 'user' && Array.isArray((typedMessage as any).content)) {
+            for (const part of (typedMessage as any).content) {
               if (part.type === 'tool_result') {
                 // Find the corresponding tool use and update it with the result
                 setChatMessages((prev) =>
@@ -1392,7 +981,7 @@ function ChatInterface({
 
         case 'claude-output':
           {
-            const cleaned = String((latestMessage.data as any) || '');
+            const cleaned = String((latestMessage.data as unknown as { type?: string; delta?: { text: string }; content?: string }) || '');
             if (cleaned.trim()) {
               streamBufferRef.current += streamBufferRef.current ? `\n${cleaned}` : cleaned;
               if (!streamTimerRef.current) {
@@ -1428,7 +1017,7 @@ function ChatInterface({
             ...prev,
             {
               type: 'assistant',
-              content: (latestMessage.data as any),
+              content: (latestMessage.data as unknown as string),
               timestamp: new Date().toISOString(),
               isInteractivePrompt: true,
               sessionId: currentSessionId || 'temp',
@@ -1448,177 +1037,7 @@ function ChatInterface({
           ]);
           break;
 
-        case 'cursor-system':
-          // Handle Cursor system/init messages similar to Claude
-          try {
-            const cdata = latestMessage.data as any;
-            if (cdata && cdata.type === 'system' && cdata.subtype === 'init' && cdata.session_id) {
-              // If we already have a session and this differs, switch (duplication/redirect)
-              if (currentSessionId && cdata.session_id !== currentSessionId) {
-                console.log('🔄 Cursor session switch detected:', {
-                  originalSession: currentSessionId,
-                  newSession: cdata.session_id,
-                });
-                setIsSystemSessionChange(true);
-                if (onNavigateToSession) {
-                  onNavigateToSession(cdata.session_id);
-                }
-                return;
-              }
-              // If we don't yet have a session, adopt this one
-              if (!currentSessionId) {
-                console.log('🔄 Cursor new session init detected:', {
-                  newSession: cdata.session_id,
-                });
-                setIsSystemSessionChange(true);
-                if (onNavigateToSession) {
-                  onNavigateToSession(cdata.session_id);
-                }
-                return;
-              }
-            }
-            // For other cursor-system messages, avoid dumping raw objects to chat
-          } catch (e) {
-            console.warn('Error handling cursor-system message:', e);
-          }
-          break;
-
-        case 'cursor-user':
-          // Handle Cursor user messages (usually echoes)
-          // Don't add user messages as they're already shown from input
-          break;
-
-        case 'cursor-tool-use':
-          // Handle Cursor tool use messages
-          setChatMessages((prev) => [
-            ...prev,
-            {
-              type: 'assistant',
-              content: `Using tool: ${latestMessage.tool} ${latestMessage.input ? `with ${latestMessage.input}` : ''}`,
-              timestamp: new Date().toISOString(),
-              isToolUse: true,
-              toolName: String(latestMessage.tool),
-              toolInput: String(latestMessage.input || ''),
-              sessionId: currentSessionId || 'temp',
-            },
-          ]);
-          break;
-
-        case 'cursor-error':
-          // Show Cursor errors as error messages in chat
-          setChatMessages((prev) => [
-            ...prev,
-            {
-              type: 'error',
-              content: `Cursor error: ${latestMessage.error || 'Unknown error'}`,
-              timestamp: new Date().toISOString(),
-              sessionId: currentSessionId || 'temp',
-            },
-          ]);
-          break;
-
-        case 'cursor-result':
-          // Handle Cursor completion and final result text
-          setIsLoading(false);
-          setCanAbortSession(false);
-          setClaudeStatus(null);
-          try {
-            const r = (latestMessage.data as any) || {};
-            const textResult = typeof r.result === 'string' ? r.result : '';
-            // Flush buffered deltas before finalizing
-            if (streamTimerRef.current) {
-              clearTimeout(streamTimerRef.current);
-              streamTimerRef.current = null;
-            }
-            const pendingChunk = streamBufferRef.current;
-            streamBufferRef.current = '';
-
-            setChatMessages((prev) => {
-              const updated = [...prev];
-              // Try to consolidate into the last streaming assistant message
-              const last = updated[updated.length - 1];
-              if (last && last.type === 'assistant' && !last.isToolUse && last.isStreaming) {
-                // Replace streaming content with the final content so deltas don't remain
-                const finalContent =
-                  textResult && textResult.trim()
-                    ? textResult
-                    : (last.content || '') + (pendingChunk || '');
-                last.content = finalContent;
-                last.isStreaming = false;
-              } else if (textResult && textResult.trim()) {
-                updated.push({
-                  type: r.is_error ? 'error' : 'assistant',
-                  content: textResult,
-                  timestamp: new Date().toISOString(),
-                  isStreaming: false,
-                  sessionId: currentSessionId || 'temp',
-                });
-              }
-              return updated;
-            });
-          } catch (e) {
-            console.warn('Error handling cursor-result message:', e);
-          }
-
-          // Mark session as inactive
-          const cursorSessionId = currentSessionId || sessionStorage.getItem('pendingSessionId');
-          if (cursorSessionId && onSessionInactive) {
-            onSessionInactive();
-          }
-
-          // Store session ID for future use and trigger refresh
-          if (cursorSessionId && !currentSessionId) {
-            setCurrentSessionId(cursorSessionId);
-            sessionStorage.removeItem('pendingSessionId');
-
-            // Trigger a project refresh to update the sidebar with the new session
-            if (window.refreshProjects) {
-              setTimeout(() => window.refreshProjects?.(), 500);
-            }
-          }
-          break;
-
-        case 'cursor-output':
-          // Handle Cursor raw terminal output; strip ANSI and ignore empty control-only payloads
-          try {
-            const raw = String((latestMessage.data as any) ?? '');
-            const cleaned = raw
-              .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '')
-              .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
-              .trim();
-            if (cleaned) {
-              streamBufferRef.current += streamBufferRef.current ? `\n${cleaned}` : cleaned;
-              if (!streamTimerRef.current) {
-                streamTimerRef.current = setTimeout(() => {
-                  const chunk = streamBufferRef.current;
-                  streamBufferRef.current = '';
-                  streamTimerRef.current = null;
-                  if (!chunk) return;
-                  setChatMessages((prev) => {
-                    const updated = [...prev];
-                    const last = updated[updated.length - 1];
-                    if (last && last.type === 'assistant' && !last.isToolUse && last.isStreaming) {
-                      last.content = last.content ? `${last.content}\n${chunk}` : chunk;
-                    } else {
-                      updated.push({
-                        type: 'assistant',
-                        content: chunk,
-                        timestamp: new Date().toISOString(),
-                        isStreaming: true,
-                        sessionId: currentSessionId || 'temp',
-                      } as ChatMessage);
-                    }
-                    return updated;
-                  });
-                }, 100);
-              }
-            }
-          } catch (e) {
-            console.warn('Error handling cursor-output message:', e);
-          }
-          break;
-
-        case 'claude-complete':
+        case 'claude-complete': {
           setIsLoading(false);
           setCanAbortSession(false);
           setClaudeStatus(null);
@@ -1648,6 +1067,7 @@ function ChatInterface({
             safeLocalStorage.removeItem(`chat_messages_${selectedProject.name}`);
           }
           break;
+        }
 
         case 'session-aborted':
           setIsLoading(false);
@@ -1671,9 +1091,9 @@ function ChatInterface({
           ]);
           break;
 
-        case 'claude-status':
+        case 'claude-status': {
           // Handle Claude working status messages
-          const statusData = latestMessage.data as any;
+          const statusData = latestMessage.data as unknown as ClaudeStatusData;
           if (statusData) {
             // Parse the status message to extract relevant information
             let statusInfo = {
@@ -1708,6 +1128,7 @@ function ChatInterface({
             setCanAbortSession(statusInfo.can_interrupt);
           }
           break;
+        }
       }
     }
   }, [messages]);
@@ -1715,7 +1136,7 @@ function ChatInterface({
   // Load file list when project changes
   useEffect(() => {
     if (selectedProject) {
-      fetchProjectFiles();
+      void fetchProjectFiles();
     }
   }, [selectedProject]);
 
@@ -2000,7 +1421,7 @@ function ChatInterface({
           ...prev,
           {
             type: 'error',
-            content: `Failed to upload images: ${(error as any).message || 'Unknown error'}`,
+            content: `Failed to upload images: ${(error as Error).message || 'Unknown error'}`,
             timestamp: new Date().toISOString(),
             sessionId: currentSessionId || 'temp',
           },
@@ -2075,7 +1496,7 @@ function ChatInterface({
           sessionId: currentSessionId || undefined,
           resume: !!currentSessionId,
           toolsSettings: toolsSettings,
-          permissionMode: permissionMode as any,
+          permissionMode: permissionMode as 'default' | 'acceptEdits' | 'bypassPermissions',
           images: uploadedImages, // Pass images to backend
         },
       });
@@ -2148,12 +1569,12 @@ function ChatInterface({
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
         // Ctrl+Enter or Cmd+Enter: Send message
         e.preventDefault();
-        handleSubmit(e);
+        void handleSubmit(e);
       } else if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
         // Plain Enter: Send message only if not in IME composition
         if (!sendByCtrlEnter) {
           e.preventDefault();
-          handleSubmit(e);
+          void handleSubmit(e);
         }
       }
       // Shift+Enter: Allow default behavior (new line)

@@ -18,7 +18,7 @@ export const ChatDemo: React.FC = () => {
   //   lastActivity: '2025-08-27T17:30:38.469Z',
   // });
   const [selectedSession] = useState({
-    id: '026fe348-9a93-49e0-bdab-5feea5e8e428',
+    id: 'b195e2a6-8273-4659-8324-2876894cdb4b',
     summary: 'spec approved, please proceed',
     lastActivity: '2025-08-27T20:10:21.222Z',
     messageCount: 259,
@@ -40,7 +40,6 @@ export const ChatDemo: React.FC = () => {
         onSessionActive={() => {}}
         onSessionInactive={() => {}}
         onReplaceTemporarySession={() => {}}
-        onNavigateToSession={() => {}}
         onShowSettings={() => {}}
         autoExpandTools={true}
         showRawParameters={false}

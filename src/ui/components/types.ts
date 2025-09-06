@@ -23,7 +23,6 @@ export interface ChatInterfaceProps {
   onSessionActive: (sessionId: string) => void;
   onSessionInactive: () => void;
   onReplaceTemporarySession: (newSessionId: string) => void;
-  onNavigateToSession: (sessionId: string) => void;
   onShowSettings: () => void;
   autoExpandTools: boolean;
   showRawParameters: boolean;

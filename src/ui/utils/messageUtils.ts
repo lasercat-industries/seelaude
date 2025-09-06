@@ -1,5 +1,6 @@
 import type { SessionMessage, ContentItem } from '@shared/claude/types';
 import { isContentItemArray, extractTextFromContentItem } from '@shared/claude/types';
+import type { ToolUseBlock, ToolResultBlock } from '@instantlyeasy/claude-code-sdk-ts';
 
 /**
  * Convert session messages for display in the chat interface
@@ -7,7 +8,7 @@ import { isContentItemArray, extractTextFromContentItem } from '@shared/claude/t
  */
 export function convertSessionMessages(messages: SessionMessage[]): SessionMessage[] {
   // First pass: collect all tool results indexed by tool_use_id
-  const toolResults = new Map<string, any>();
+  const toolResults = new Map<string, ToolResultBlock>();
 
   messages.forEach((msg) => {
     if (msg.type === 'assistant' && msg.message?.content) {
@@ -15,7 +16,7 @@ export function convertSessionMessages(messages: SessionMessage[]): SessionMessa
       if (isContentItemArray(content)) {
         content.forEach((item: ContentItem) => {
           if (item && typeof item === 'object' && 'type' in item && item.type === 'tool_result') {
-            const toolResult = item as any;
+            const toolResult = item as unknown as ToolResultBlock;
             if (toolResult.tool_use_id) {
               toolResults.set(toolResult.tool_use_id, toolResult);
             }
@@ -36,7 +37,7 @@ export function convertSessionMessages(messages: SessionMessage[]): SessionMessa
     if (msg.type === 'assistant' && isContentItemArray(msg.message.content)) {
       const processedContent = (msg.message.content as ContentItem[]).map((item: ContentItem) => {
         if (item && typeof item === 'object' && 'type' in item && item.type === 'tool_use') {
-          const toolUse = item as any;
+          const toolUse = item as unknown as ToolUseBlock;
           const result = toolResults.get(toolUse.id);
 
           // Attach result to tool use if found
