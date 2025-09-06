@@ -8,7 +8,12 @@ import * as fsSync from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as readline from 'readline';
-import type { ClaudeSession, ClaudeProject, SessionMessage, ContentItem } from '@shared/claude/types';
+import type {
+  ClaudeSession,
+  ClaudeProject,
+  SessionMessage,
+  ContentItem,
+} from '@shared/claude/types';
 
 import { isContentItemArray, isNodeError } from '@shared/claude/types';
 

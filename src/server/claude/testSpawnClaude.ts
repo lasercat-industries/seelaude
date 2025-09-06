@@ -73,9 +73,12 @@ function createTestStream(): {
     waitForCompletion: (timeoutMs: number = 10000) => {
       return Promise.race([
         completionPromise,
-        new Promise<void>((_resolve, reject) => 
-          setTimeout(() => reject(new Error(`Timeout waiting for completion after ${timeoutMs}ms`)), timeoutMs)
-        )
+        new Promise<void>((_resolve, reject) =>
+          setTimeout(
+            () => reject(new Error(`Timeout waiting for completion after ${timeoutMs}ms`)),
+            timeoutMs,
+          ),
+        ),
       ]);
     },
   };
@@ -159,7 +162,9 @@ async function testSessionResumption(): Promise<void> {
     try {
       await wait2(5000); // 5 second timeout for resumed sessions
     } catch (timeoutError) {
-      console.log(`${colors.yellow}  ⚠ Session resume didn't send completion signal (may be normal)${colors.reset}`);
+      console.log(
+        `${colors.yellow}  ⚠ Session resume didn't send completion signal (may be normal)${colors.reset}`,
+      );
     }
     const resumedSessionId = await promise2;
 

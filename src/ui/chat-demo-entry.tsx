@@ -9,6 +9,6 @@ if (container) {
   root.render(
     <React.StrictMode>
       <ChatDemo />
-    </React.StrictMode>
+    </React.StrictMode>,
   );
 }

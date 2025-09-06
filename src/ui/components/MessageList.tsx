@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import type { SessionMessage } from '@shared/claude/types';
-import { MessageComponent } from './MessageComponent';
+import { MessageComponent } from './OldMessageComponent';
 
 interface MessageListProps {
   messages: SessionMessage[];
@@ -8,10 +8,10 @@ interface MessageListProps {
   autoExpandTools?: boolean;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ 
-  messages, 
+export const MessageList: React.FC<MessageListProps> = ({
+  messages,
   className = '',
-  autoExpandTools = false
+  autoExpandTools = false,
 }) => {
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -22,7 +22,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   }, [messages.length]);
 
   return (
-    <div 
+    <div
       ref={listRef}
       className={`flex flex-col h-full overflow-y-auto overflow-x-hidden px-4 py-4 space-y-4 scrollbar-hide ${className}`}
       style={{
@@ -34,7 +34,7 @@ export const MessageList: React.FC<MessageListProps> = ({
         <MessageComponent
           key={message.uuid || `${message.sessionId}-${index}`}
           message={message as any}
-          prevMessage={index > 0 ? messages[index - 1] as any : undefined}
+          prevMessage={index > 0 ? (messages[index - 1] as any) : undefined}
           autoExpandTools={autoExpandTools}
         />
       ))}

@@ -1,7 +1,4 @@
-import type {
-  ToolName,
-  PermissionMode,
-} from '@instantlyeasy/claude-code-sdk-ts';
+import type { ToolName, PermissionMode } from '@instantlyeasy/claude-code-sdk-ts';
 /**
  * Shared type definitions for Claude API data structures
  * These types are used across multiple modules that parse Claude's JSONL files
@@ -71,6 +68,7 @@ export interface ClaudeSession {
   messageCount: number;
   created: string;
   projectName?: string;
+  __provider?: string; // Added for provider tracking
 }
 
 /**
@@ -99,6 +97,7 @@ export interface SessionMessage {
   message?: {
     role: string;
     content: MessageContent;
+    id?: string; // Optional id property for messages
   };
   timestamp: string;
   uuid?: string;
@@ -279,7 +278,7 @@ export interface SpawnClaudeOptions {
 }
 
 export type ClaudeCommandMessage = {
-  type: "claude-command";
+  type: 'claude-command';
   command: string;
   options: SpawnClaudeOptions;
 };

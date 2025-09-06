@@ -16,7 +16,7 @@ export async function loadPerloxSession(): Promise<SessionMessage[]> {
   } catch (err) {
     console.warn('Failed to parse imported JSONL data:', err);
   }
-  
+
   // Fallback: try to fetch the file
   try {
     const response = await fetch('/935f5343-163f-461b-a7f3-c7e9b3a4a686.jsonl');
@@ -37,10 +37,10 @@ function getFallbackMessages(): SessionMessage[] {
       type: 'user',
       message: {
         role: 'user',
-        content: 'Hello! Can you help me build a parser?'
+        content: 'Hello! Can you help me build a parser?',
       },
       timestamp: new Date().toISOString(),
-      uuid: 'demo-1'
+      uuid: 'demo-1',
     },
     {
       sessionId: 'demo-session',
@@ -71,10 +71,10 @@ What kind of parser are you looking to build? I can help with:
 - Expression parsers (arithmetic, boolean)
 - Programming language parsers
 - Configuration file parsers (JSON, YAML)
-- Custom DSL parsers`
+- Custom DSL parsers`,
       },
       timestamp: new Date().toISOString(),
-      uuid: 'demo-2'
-    }
+      uuid: 'demo-2',
+    },
   ];
 }

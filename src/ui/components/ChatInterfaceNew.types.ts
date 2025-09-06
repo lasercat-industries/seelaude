@@ -2,17 +2,13 @@
  * Type definitions for ChatInterfaceNew component
  */
 
-import type { 
-  ClaudeProject, 
-  ClaudeSession, 
-  SessionMessage 
-} from '@shared/claude/types';
-import type { 
-  WebSocketMessage, 
-  OutgoingMessage, 
-  WebSocket 
-} from '@shared/types';
-import type { ExtendedMessage } from './MessageComponent';
+import type { ClaudeProject, ClaudeSession, SessionMessage } from '@shared/claude/types';
+import type { WebSocketMessage, OutgoingMessage, WebSocket } from '@shared/types';
+
+export interface DiffInfo {
+  old_string: string;
+  new_string: string;
+}
 
 /**
  * Main component props interface
@@ -22,7 +18,7 @@ export interface ChatInterfaceProps {
   selectedSession?: ClaudeSession;
   sendMessage: (message: OutgoingMessage) => void;
   messages: WebSocketMessage[];
-  onFileOpen: (path: string) => void;
+  onFileOpen: (path: string, diffInfo: DiffInfo | null) => void;
   onInputFocusChange: (focused: boolean) => void;
   onSessionActive: (sessionId: string) => void;
   onSessionInactive: () => void;
@@ -38,15 +34,32 @@ export interface ChatInterfaceProps {
   ws?: WebSocket | null;
 }
 
+export interface ExtendedMessage extends Omit<SessionMessage, 'type'> {
+  isToolUse?: boolean;
+  toolName?: string;
+  toolId?: string;
+  toolInput?: string;
+  toolResult?: {
+    content: string;
+    isError: boolean;
+  };
+  reasoning?: string;
+  images?: Array<{ data: string; name: string }>;
+}
+
 /**
  * Chat message type extending ExtendedMessage
  */
 export type ChatMessage = ExtendedMessage & {
+  type: 'user' | 'assistant' | 'system' | 'tool' | 'tool_result' | 'hook_feedback' | 'error';
+  id?: string;
   isStreaming?: boolean;
   files?: AttachedFile[];
   isInteractivePrompt?: boolean;
   isClaude?: boolean;
   images?: string[];
+  content: string;
+  isError?: boolean;
 };
 
 /**
@@ -97,20 +110,6 @@ export interface ImageAttachmentProps {
   onRemove: () => void;
   uploadProgress?: number;
   error?: string;
-}
-
-/**
- * Message block component props
- */
-export interface MessageBlockProps {
-  message: ChatMessage;
-  prevMessage?: ChatMessage;
-  nextMessage?: ChatMessage;
-  createDiff: (oldStr: string, newStr: string) => string;
-  onFileOpen: (path: string) => void;
-  onShowSettings: () => void;
-  autoExpandTools: boolean;
-  showRawParameters: boolean;
 }
 
 /**
@@ -186,17 +185,12 @@ export type FormatUsageLimitText = (text: string) => string;
 export type ParseAnsiToHtml = (text: string) => string;
 export type CreateDiff = (oldStr: string, newStr: string) => string;
 export type LoadSessionMessages = (
-  projectName: string, 
-  sessionId: string, 
-  loadMore?: boolean
+  projectName: string,
+  sessionId: string,
+  loadMore?: boolean,
 ) => Promise<SessionMessage[]>;
-export type ConvertSessionMessages = (
-  rawMessages: SessionMessage[]
-) => ChatMessage[];
-export type FlattenFileTree = (
-  files: FileTreeNode[], 
-  prefix?: string
-) => FileTreeNode[];
+export type ConvertSessionMessages = (rawMessages: SessionMessage[]) => ChatMessage[];
+export type FlattenFileTree = (files: FileTreeNode[], prefix?: string) => FileTreeNode[];
 
 /**
  * Scroll position state

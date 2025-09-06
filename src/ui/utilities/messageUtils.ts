@@ -8,8 +8,8 @@ import { isContentItemArray, extractTextFromContentItem } from '@shared/claude/t
 export function convertSessionMessages(messages: SessionMessage[]): SessionMessage[] {
   // First pass: collect all tool results indexed by tool_use_id
   const toolResults = new Map<string, any>();
-  
-  messages.forEach(msg => {
+
+  messages.forEach((msg) => {
     if (msg.type === 'assistant' && msg.message?.content) {
       const content = msg.message.content;
       if (isContentItemArray(content)) {
@@ -26,7 +26,7 @@ export function convertSessionMessages(messages: SessionMessage[]): SessionMessa
   });
 
   // Second pass: process messages and attach tool results
-  return messages.map(msg => {
+  return messages.map((msg) => {
     // Skip system messages or empty messages
     if (msg.type === 'system' || !msg.message?.content) {
       return msg;
@@ -38,12 +38,12 @@ export function convertSessionMessages(messages: SessionMessage[]): SessionMessa
         if (item && typeof item === 'object' && 'type' in item && item.type === 'tool_use') {
           const toolUse = item as any;
           const result = toolResults.get(toolUse.id);
-          
+
           // Attach result to tool use if found
           if (result) {
             return {
               ...toolUse,
-              result: result.content
+              result: result.content,
             };
           }
         }
@@ -54,8 +54,8 @@ export function convertSessionMessages(messages: SessionMessage[]): SessionMessa
         ...msg,
         message: {
           ...msg.message,
-          content: processedContent
-        }
+          content: processedContent,
+        },
       };
     }
 
@@ -98,8 +98,9 @@ export function hasToolUsage(message: SessionMessage): boolean {
 
   const content = message.message.content;
   if (isContentItemArray(content)) {
-    return content.some((item: ContentItem) => 
-      item && typeof item === 'object' && 'type' in item && item.type === 'tool_use'
+    return content.some(
+      (item: ContentItem) =>
+        item && typeof item === 'object' && 'type' in item && item.type === 'tool_use',
     );
   }
 
@@ -116,8 +117,9 @@ export function countToolUses(message: SessionMessage): number {
 
   const content = message.message!.content;
   if (isContentItemArray(content)) {
-    return content.filter((item: ContentItem) => 
-      item && typeof item === 'object' && 'type' in item && item.type === 'tool_use'
+    return content.filter(
+      (item: ContentItem) =>
+        item && typeof item === 'object' && 'type' in item && item.type === 'tool_use',
     ).length;
   }
 

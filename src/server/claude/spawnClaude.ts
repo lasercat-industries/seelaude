@@ -1,11 +1,6 @@
 import { claude, createTokenStream } from '@instantlyeasy/claude-code-sdk-ts';
-import type {
-  Message,
-} from '@instantlyeasy/claude-code-sdk-ts';
-import type {
-  WebSocket,
-  WebSocketMessage
-} from '@shared/types';
+import type { Message } from '@instantlyeasy/claude-code-sdk-ts';
+import type { WebSocket, WebSocketMessage } from '@shared/types';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Duplex, Writable } from 'stream';
@@ -123,7 +118,6 @@ async function spawnClaude(
 
     // Build the query using the SDK
     let query = claude().inDirectory(workingDir).withSignal(controller.signal);
-
 
     // If we have a sessionId, use it to resume the session
     // Otherwise, start a new session with a model

@@ -12,7 +12,7 @@ interface ChatInterfaceProps {
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   initialMessages = [],
   className = '',
-  autoExpandTools = false
+  autoExpandTools = false,
 }) => {
   const [messages, setMessages] = useState<SessionMessage[]>([]);
   const [isLoading] = useState(false);

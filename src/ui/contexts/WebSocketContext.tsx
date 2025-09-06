@@ -11,7 +11,7 @@ const WebSocketContext = createContext<{
   ws: undefined,
   sendMessage: () => {},
   messages: [],
-  isConnected: false
+  isConnected: false,
 });
 
 export const useWebSocketContext = () => {
@@ -22,14 +22,10 @@ export const useWebSocketContext = () => {
   return context;
 };
 
-export const WebSocketProvider:  FC<{ children?: ReactNode }> = ({ children }) => {
+export const WebSocketProvider: FC<{ children?: ReactNode }> = ({ children }) => {
   const webSocketData = useWebSocket();
-  
-  return (
-    <WebSocketContext.Provider value={webSocketData}>
-      {children}
-    </WebSocketContext.Provider>
-  );
+
+  return <WebSocketContext.Provider value={webSocketData}>{children}</WebSocketContext.Provider>;
 };
 
 export default WebSocketContext;

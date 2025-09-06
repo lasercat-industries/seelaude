@@ -9,7 +9,7 @@ export function useWebSocket() {
 
   useEffect(() => {
     connect();
-    
+
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -28,23 +28,27 @@ export function useWebSocket() {
         const configResponse = await fetch('/api/config');
         const config = await configResponse.json();
         wsBaseUrl = config.wsUrl;
-        
+
         // If the config returns localhost but we're not on localhost, use current host but with API server port
         if (wsBaseUrl.includes('localhost') && !window.location.hostname.includes('localhost')) {
-          console.warn('Config returned localhost, using current host with API server port instead');
+          console.warn(
+            'Config returned localhost, using current host with API server port instead',
+          );
           const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
           // For development, API server is typically on port 3002 when Vite is on 3001
           const apiPort = window.location.port === '3001' ? '3002' : window.location.port;
           wsBaseUrl = `${protocol}//${window.location.hostname}:${apiPort}`;
         }
       } catch (error) {
-        console.warn('Could not fetch server config, falling back to current host with API server port');
+        console.warn(
+          'Could not fetch server config, falling back to current host with API server port',
+        );
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         // For development, API server is typically on port 3002 when Vite is on 3001
         const apiPort = window.location.port === '3001' ? '3002' : window.location.port;
         wsBaseUrl = `${protocol}//${window.location.hostname}:${apiPort}`;
       }
-      
+
       // Include token in WebSocket URL as query parameter
       const wsUrl = `${wsBaseUrl}/ws`;
       const websocket = new WebSocket(wsUrl);
@@ -57,7 +61,7 @@ export function useWebSocket() {
       websocket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data) as WebSocketMessage;
-          setMessages(prev => [...prev, data]);
+          setMessages((prev) => [...prev, data]);
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
         }
@@ -66,7 +70,7 @@ export function useWebSocket() {
       websocket.onclose = () => {
         setIsConnected(false);
         setWs(undefined);
-        
+
         // Attempt to reconnect after 3 seconds
         reconnectTimeoutRef.current = setTimeout(() => {
           connect();
@@ -76,7 +80,6 @@ export function useWebSocket() {
       websocket.onerror = (error) => {
         console.error('WebSocket error:', error);
       };
-
     } catch (error) {
       console.error('Error creating WebSocket connection:', error);
     }
@@ -94,6 +97,6 @@ export function useWebSocket() {
     ws,
     sendMessage,
     messages,
-    isConnected
+    isConnected,
   };
 }

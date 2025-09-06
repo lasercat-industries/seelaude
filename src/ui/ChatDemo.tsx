@@ -54,9 +54,7 @@ export const ChatDemo: React.FC = () => {
 
   return (
     <div className="h-screen">
-      <ChatInterface 
-        initialMessages={messages}
-      />
+      <ChatInterface initialMessages={messages} />
     </div>
   );
 };

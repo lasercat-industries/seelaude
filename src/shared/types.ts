@@ -1,7 +1,4 @@
-import type {
-  Message,
-  CLIOutput,
-} from '@instantlyeasy/claude-code-sdk-ts';
+import type { Message, CLIOutput } from '@instantlyeasy/claude-code-sdk-ts';
 import type { ClaudeCommandMessage } from './claude/types';
 
 export interface WebSocket {
@@ -16,19 +13,38 @@ export interface WebSocketMessage {
     | 'claude-response'
     | 'claude-error'
     | 'claude-complete'
-    | 'claude-output';
+    | 'claude-output'
+    | 'claude-interactive-prompt'
+    | 'claude-status'
+    | 'session-aborted'
+    | 'cursor-system'
+    | 'cursor-user'
+    | 'cursor-tool-use'
+    | 'cursor-error'
+    | 'cursor-result'
+    | 'cursor-output';
   sessionId?: string;
   data?: Message | CLIOutput | unknown;
   error?: string;
   exitCode?: number;
   isNewSession?: boolean;
   tool?: unknown;
+  input?: any; // For cursor-tool-use
 }
 
 export type AbortSessionMessage = {
-  type: "abort-session";
+  type: 'abort-session';
   sessionId: string;
   provider: string;
 };
 
-export type OutgoingMessage = ClaudeCommandMessage | AbortSessionMessage;
+export type CursorCommandMessage = {
+  type: 'cursor-command';
+  command: string;
+  projectPath?: string;
+  sessionId?: string | null;
+  permissionMode?: string;
+  model?: string;
+};
+
+export type OutgoingMessage = ClaudeCommandMessage | AbortSessionMessage | CursorCommandMessage;

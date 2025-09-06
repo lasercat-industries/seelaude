@@ -1,7 +1,12 @@
 // Mock API utilities for demo
 export const api = {
   // Real sessionMessages endpoint
-  sessionMessages: async (projectName: string, sessionId: string, limit: number | null = null, offset: number = 0) => {
+  sessionMessages: async (
+    projectName: string,
+    sessionId: string,
+    limit: number | null = null,
+    offset: number = 0,
+  ) => {
     const params = new URLSearchParams();
     if (limit !== null) {
       params.append('limit', limit.toString());
@@ -9,12 +14,14 @@ export const api = {
     }
     const queryString = params.toString();
     const url = `/api/projects/${projectName}/sessions/${sessionId}/messages${queryString ? `?${queryString}` : ''}`;
-    
+
     return fetch(url);
   },
-  config: async() => {
-
-  }
+  config: async () => {},
+  // Get files for a project
+  getFiles: async (projectName: string) => {
+    return fetch(`/api/projects/${projectName}/files`);
+  },
 };
 
 export const authenticatedFetch = (url: string, options?: RequestInit) => {

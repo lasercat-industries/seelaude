@@ -41,10 +41,12 @@ app.get(
             console.log('Parsed JSON from Uint8Array:', data);
           } else {
             console.warn('Unsupported message type:', raw);
-            ws.send(JSON.stringify({
-              type: 'error',
-              error: 'Unsupported message type:',
-            }));
+            ws.send(
+              JSON.stringify({
+                type: 'error',
+                error: 'Unsupported message type:',
+              }),
+            );
             return;
           }
 
@@ -68,11 +70,11 @@ app.get(
           }
         } catch (error) {
           if (error instanceof Error) {
-            console.error("❌ Chat WebSocket error:", error.message);
-            ws.send(JSON.stringify({ type: "error", error: error.message }));
+            console.error('❌ Chat WebSocket error:', error.message);
+            ws.send(JSON.stringify({ type: 'error', error: error.message }));
           } else {
-            console.error("❌ Chat WebSocket error:", error);
-            ws.send(JSON.stringify({ type: "error", error: String(error) }));
+            console.error('❌ Chat WebSocket error:', error);
+            ws.send(JSON.stringify({ type: 'error', error: String(error) }));
           }
         }
       },
@@ -87,7 +89,6 @@ app.get(
     };
   }),
 );
-
 
 // Error handling middleware
 app.onError((err, c) => {
