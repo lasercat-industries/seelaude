@@ -674,7 +674,7 @@ function ChatInterface({
               role = content.message.role === 'user' ? 'user' : 'assistant';
               if (Array.isArray(content.message.content)) {
                 text = content.message.content
-                  .map((p) => (typeof p === 'string' ? p : p?.text || ''))
+                  .map((p: any) => (typeof p === 'string' ? p : p?.text || ''))
                   .filter(Boolean)
                   .join('\n');
               } else if (typeof content.message.content === 'string') {
@@ -1328,7 +1328,7 @@ function ChatInterface({
                     toolName: part.name,
                     toolInput: toolInput,
                     toolId: part.id,
-                    toolResult: null, // Will be updated when result comes in
+                    toolResult: undefined, // Will be updated when result comes in
                     sessionId: currentSessionId || 'temp',
                   },
                 ]);
@@ -1341,7 +1341,7 @@ function ChatInterface({
                   ...prev,
                   {
                     type: 'assistant',
-                    content: content,
+                    content: String(content),
                     timestamp: new Date().toISOString(),
                     sessionId: currentSessionId || 'temp',
                   },
@@ -1357,8 +1357,9 @@ function ChatInterface({
               ...prev,
               {
                 type: 'assistant',
-                content: content,
+                content: String(content),
                 timestamp: new Date().toISOString(),
+                sessionId: currentSessionId || 'temp',
               },
             ]);
           }
@@ -1442,6 +1443,7 @@ function ChatInterface({
               type: 'error',
               content: `Error: ${latestMessage.error}`,
               timestamp: new Date().toISOString(),
+              sessionId: currentSessionId || 'temp',
             },
           ]);
           break;
@@ -1495,8 +1497,9 @@ function ChatInterface({
               content: `Using tool: ${latestMessage.tool} ${latestMessage.input ? `with ${latestMessage.input}` : ''}`,
               timestamp: new Date().toISOString(),
               isToolUse: true,
-              toolName: latestMessage.tool,
-              toolInput: latestMessage.input,
+              toolName: String(latestMessage.tool),
+              toolInput: String(latestMessage.input || ''),
+              sessionId: currentSessionId || 'temp',
             },
           ]);
           break;
@@ -1509,6 +1512,7 @@ function ChatInterface({
               type: 'error',
               content: `Cursor error: ${latestMessage.error || 'Unknown error'}`,
               timestamp: new Date().toISOString(),
+              sessionId: currentSessionId || 'temp',
             },
           ]);
           break;
@@ -1547,6 +1551,7 @@ function ChatInterface({
                   content: textResult,
                   timestamp: new Date().toISOString(),
                   isStreaming: false,
+                  sessionId: currentSessionId || 'temp',
                 });
               }
               return updated;
@@ -1558,7 +1563,7 @@ function ChatInterface({
           // Mark session as inactive
           const cursorSessionId = currentSessionId || sessionStorage.getItem('pendingSessionId');
           if (cursorSessionId && onSessionInactive) {
-            onSessionInactive(cursorSessionId);
+            onSessionInactive();
           }
 
           // Store session ID for future use and trigger refresh
@@ -1568,7 +1573,7 @@ function ChatInterface({
 
             // Trigger a project refresh to update the sidebar with the new session
             if (window.refreshProjects) {
-              setTimeout(() => window.refreshProjects(), 500);
+              setTimeout(() => window.refreshProjects?.(), 500);
             }
           }
           break;
@@ -1623,7 +1628,7 @@ function ChatInterface({
           // Use real session ID if available, otherwise use pending session ID
           const activeSessionId = currentSessionId || sessionStorage.getItem('pendingSessionId');
           if (activeSessionId && onSessionInactive) {
-            onSessionInactive(activeSessionId);
+            onSessionInactive();
           }
 
           // If we have a pending session ID and the conversation completed successfully, use it
@@ -1634,7 +1639,7 @@ function ChatInterface({
 
             // Trigger a project refresh to update the sidebar with the new session
             if (window.refreshProjects) {
-              setTimeout(() => window.refreshProjects(), 500);
+              setTimeout(() => window.refreshProjects?.(), 500);
             }
           }
 
@@ -1652,7 +1657,7 @@ function ChatInterface({
           // Session Protection: Mark session as inactive when aborted
           // User or system aborted the conversation, re-enable project updates
           if (currentSessionId && onSessionInactive) {
-            onSessionInactive(currentSessionId);
+            onSessionInactive();
           }
 
           setChatMessages((prev) => [
@@ -1661,6 +1666,7 @@ function ChatInterface({
               type: 'assistant',
               content: 'Session interrupted by user.',
               timestamp: new Date().toISOString(),
+              sessionId: currentSessionId || 'temp',
             },
           ]);
           break;
@@ -2009,8 +2015,9 @@ function ChatInterface({
           ...prev,
           {
             type: 'error',
-            content: `Failed to upload images: ${error.message}`,
+            content: `Failed to upload images: ${(error as any).message || 'Unknown error'}`,
             timestamp: new Date().toISOString(),
+            sessionId: currentSessionId || 'temp',
           },
         ]);
         return;
@@ -2018,10 +2025,11 @@ function ChatInterface({
     }
 
     const userMessage = {
-      type: 'user',
+      type: 'user' as const,
       content: input,
       images: uploadedImages,
       timestamp: new Date().toISOString(),
+      sessionId: currentSessionId || 'temp',
     };
 
     setChatMessages((prev) => [...prev, userMessage]);
@@ -2046,7 +2054,7 @@ function ChatInterface({
     // Use existing session if available; otherwise a temporary placeholder until backend provides real ID
     const sessionToActivate = effectiveSessionId || `new-session-${Date.now()}`;
     if (onSessionActive) {
-      onSessionActive(sessionToActivate);
+      onSessionActive?.(sessionToActivate);
     }
 
     // Get tools settings from localStorage based on provider
@@ -2096,10 +2104,10 @@ function ChatInterface({
         options: {
           projectPath: selectedProject.path,
           cwd: selectedProject.fullPath,
-          sessionId: currentSessionId,
+          sessionId: currentSessionId || undefined,
           resume: !!currentSessionId,
           toolsSettings: toolsSettings,
-          permissionMode: permissionMode,
+          permissionMode: permissionMode as any,
           images: uploadedImages, // Pass images to backend
         },
       });
