@@ -5,9 +5,9 @@ import ClaudeLogo from './ClaudeLogo.jsx';
 import TodoList from './TodoList';
 
 // Format "Claude AI usage limit reached|<epoch>" into a local time string
-function formatUsageLimitText(text: string | unknown): string | unknown {
+function formatUsageLimitText(text: string | unknown): string {
   try {
-    if (typeof text !== 'string') return text;
+    if (typeof text !== 'string') return String(text);
     return text.replace(/Claude AI usage limit reached\|(\d{10,13})/g, (match, ts) => {
       let timestampMs = parseInt(ts, 10);
       if (!Number.isFinite(timestampMs)) return match;
@@ -56,7 +56,7 @@ function formatUsageLimitText(text: string | unknown): string | unknown {
       return `Claude usage limit reached. Your limit will reset at **${timeStr} ${tzHuman}** - ${dateReadable}`;
     });
   } catch {
-    return text;
+    return String(text);
   }
 }
 
@@ -72,7 +72,7 @@ export interface MessageComponentProps {
   message: ChatMessage;
   prevMessage?: ChatMessage;
   nextMessage?: ChatMessage;
-  createDiff: (oldStr: string, newStr: string) => string;
+  createDiff: (oldStr: string, newStr: string) => Array<{ type: string; content: string | undefined; lineNum?: number }>;
   onFileOpen: (path: string, diffInfo: DiffInfo | null) => void;
   onShowSettings: () => void;
   autoExpandTools: boolean;
@@ -107,7 +107,7 @@ export const MessageComponent = memo<MessageComponentProps>(
         ? prevMessage && prevMessage.type === 'user'
         : prevMessage && isClaudeMessage(prevMessage) && isClaudeMessage(message);
 
-    const messageRef = React.useRef(null);
+    const messageRef = React.useRef<HTMLDivElement>(null);
     const [isExpanded, setIsExpanded] = React.useState(false);
     React.useEffect(() => {
       if (!autoExpandTools || !messageRef.current || !message.isToolUse) return;
@@ -119,12 +119,14 @@ export const MessageComponent = memo<MessageComponentProps>(
               setIsExpanded(true);
               // Find details elements that have the open attribute set to autoExpandTools
               // This respects the individual tool's open attribute setting
-              const details = messageRef.current.querySelectorAll(
-                'details[data-auto-expand="true"]',
-              );
-              details.forEach((detail) => {
-                detail.open = true;
-              });
+              if (messageRef.current) {
+                const details = messageRef.current.querySelectorAll(
+                  'details[data-auto-expand="true"]',
+                );
+                details.forEach((detail) => {
+                  (detail as HTMLDetailsElement).open = true;
+                });
+              }
             }
           });
         },
@@ -235,7 +237,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                   <div className="w-8 h-8 bg-gray-600 dark:bg-gray-700 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0">
                     🔧
                   </div>
-                ) : message.type === 'tool_result' ? (
+                ) : (message as ChatMessage).type === 'tool_result' ? (
                   <div
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs flex-shrink-0 ${
                       message.isError
@@ -260,7 +262,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                       ? 'Error'
                       : message.type === 'tool'
                         ? 'Tool'
-                        : message.type === 'tool_result'
+                        : (message as ChatMessage).type === 'tool_result'
                           ? 'Tool Result'
                           : (localStorage.getItem('selected-provider') || 'claude') === 'cursor'
                             ? 'Cursor'
@@ -394,7 +396,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                                   </div>
                                   <div className="text-xs font-mono">
                                     {createDiff(input.old_string, input.new_string).map(
-                                      (diffLine, i) => (
+                                      (diffLine: { type: string; content: string | undefined }, i: number) => (
                                         <div key={i} className="flex">
                                           <span
                                             className={`w-8 text-center border-r ${
@@ -509,7 +511,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                                       </span>
                                     </div>
                                     <div className="text-xs font-mono">
-                                      {createDiff('', input.content).map((diffLine, i) => (
+                                      {createDiff('', input.content).map((diffLine: { type: string; content: string | undefined }, i: number) => (
                                         <div key={i} className="flex">
                                           <span
                                             className={`w-8 text-center border-r ${
@@ -730,7 +732,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                                   </a>
                                 </summary>
                                 <div className="mt-3 space-y-3">
-                                  {input.edits.map((edit, index: number) => (
+                                  {input.edits.map((edit: any, index: number) => (
                                     <div
                                       key={index}
                                       className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
@@ -1037,7 +1039,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                 // Simple Read tool indicator
                 (() => {
                   try {
-                    const input = JSON.parse(message.toolInput);
+                    const input = JSON.parse(message.toolInput || '{}');
                     if (input.file_path) {
                       const filename = input.file_path.split('/').pop();
                       return (
@@ -1052,6 +1054,11 @@ export const MessageComponent = memo<MessageComponentProps>(
                         </div>
                       );
                     }
+                    return (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-300 dark:border-blue-600 pl-3 py-1 mb-2 text-sm text-blue-700 dark:text-blue-300">
+                        📖 Read file
+                      </div>
+                    );
                   } catch (e) {
                     return (
                       <div className="bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-300 dark:border-blue-600 pl-3 py-1 mb-2 text-sm text-blue-700 dark:text-blue-300">
@@ -1109,7 +1116,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                     <div className="prose prose-sm max-w-none dark:prose-invert prose-gray [&_code]:!bg-transparent [&_code]:!p-0 [&_pre]:!bg-transparent [&_pre]:!border-0 [&_pre]:!p-0">
                       <ReactMarkdown
                         components={{
-                          code: ({ node, inline, className, children, ...props }) => {
+                          code: ({ node, inline, className, children, ...props }: any) => {
                             return inline ? (
                               <strong
                                 className="text-blue-600 dark:text-blue-400 font-bold not-prose"
