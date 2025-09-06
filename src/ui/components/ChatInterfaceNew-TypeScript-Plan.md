@@ -1,5 +1,14 @@
 # ChatInterfaceNew TypeScript Conversion Plan
 
+## Quick Start Checklist
+
+### Prerequisites
+- [ ] Backup current ChatInterfaceNew.tsx file
+- [ ] Ensure dev server is running and working
+- [ ] Have TypeScript docs handy for reference
+
+### Estimated Time: ~2-3 hours for full conversion
+
 ## EXISTING TYPES FOUND IN REPO
 
 ### From `@shared/claude/types.ts`:
@@ -86,106 +95,100 @@ Functions with implicit `any` parameters:
 - `parseAnsiToHtml` (line 92)
 - `flattenFileTree` (line 2790)
 
-## Implementation Plan
+## Implementation Plan with Checklist
 
 ### Phase 1: Create Type Definitions File
-Create `ChatInterfaceNew.types.ts`:
-- Define all message types
-- Define component prop interfaces
-- Define state shape types
-- Define API response types
+- [x] Create `ChatInterfaceNew.types.ts` file
+- [x] Import existing types from `@shared/claude/types` and `@shared/types`
+- [x] Define `ChatInterfaceProps` interface
+- [x] Define `UploadedImage` interface
+- [x] Define `AttachedFile` interface  
+- [x] Define `FileTreeNode` interface
+- [x] Define `ClaudeStatus` interface
+- [x] Export all new types
 
-### Phase 2: Add Component Props Interface
-```typescript
-import type { ClaudeProject, ClaudeSession, SessionMessage } from '@shared/claude/types';
-import type { WebSocketMessage, OutgoingMessage } from '@shared/types';
-
-interface ChatInterfaceProps {
-  selectedProject?: ClaudeProject;
-  selectedSession?: ClaudeSession;
-  sendMessage: (message: OutgoingMessage) => void;
-  messages: WebSocketMessage[];
-  onFileOpen: (path: string) => void;
-  onInputFocusChange: (focused: boolean) => void;
-  onSessionActive: (sessionId: string) => void;
-  onSessionInactive: () => void;
-  onReplaceTemporarySession: (newSessionId: string) => void;
-  onNavigateToSession: (sessionId: string) => void;
-  onShowSettings: () => void;
-  autoExpandTools: boolean;
-  showRawParameters: boolean;
-  autoScrollToBottom: boolean;
-  sendByCtrlEnter: boolean;
-  onShowAllTasks: () => void;
-  onTaskClick?: (task: any) => void;
-  ws?: WebSocket | null;
-}
-```
+### Phase 2: Update Component Declaration
+- [ ] Import types from `ChatInterfaceNew.types.ts`
+- [ ] Add `ChatInterfaceProps` type to function signature
+- [ ] Remove the `@ts-ignore` comment at top of file
+- [ ] Update function declaration: `function ChatInterface(props: ChatInterfaceProps)`
+- [ ] Destructure props with proper typing
 
 ### Phase 3: Type State Variables
-```typescript
-const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-const [sessionMessages, setSessionMessages] = useState<SessionMessage[]>([]);
-const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
-const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
-const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
-const [claudeStatus, setClaudeStatus] = useState<ClaudeStatus | null>(null);
-```
+- [ ] Type `chatMessages` state as `ExtendedMessage[]`
+- [ ] Type `sessionMessages` state as `SessionMessage[]`
+- [ ] Type `uploadedImages` state as `UploadedImage[]`
+- [ ] Type `attachedFiles` state as `AttachedFile[]`
+- [ ] Type `fileTree` state as `FileTreeNode[]`
+- [ ] Type `claudeStatus` state as `ClaudeStatus | null`
+- [ ] Type `input` state as `string`
+- [ ] Type `isLoading` state as `boolean`
+- [ ] Type `currentSessionId` state as `string | null`
+- [ ] Type all other boolean states
+- [ ] Type numeric states (messagesOffset, totalMessages, etc.)
 
 ### Phase 4: Type Refs
-```typescript
-const scrollContainerRef = useRef<HTMLDivElement>(null);
-const textareaRef = useRef<HTMLTextAreaElement>(null);
-const fileInputRef = useRef<HTMLInputElement>(null);
-const streamBufferRef = useRef<string>('');
-const streamTimerRef = useRef<NodeJS.Timeout | null>(null);
-```
+- [ ] Type `scrollContainerRef` as `useRef<HTMLDivElement>(null)`
+- [ ] Type `textareaRef` as `useRef<HTMLTextAreaElement>(null)`
+- [ ] Type `fileInputRef` as `useRef<HTMLInputElement>(null)`
+- [ ] Type `streamBufferRef` as `useRef<string>('')`
+- [ ] Type `streamTimerRef` as `useRef<NodeJS.Timeout | null>(null)`
+- [ ] Type `messageRef` as `useRef<HTMLDivElement>(null)`
+- [ ] Type `uploadProgressRef` as `useRef<Map<string, number>>(new Map())`
+- [ ] Type `temporarySessionIdRef` as `useRef<string | null>(null)`
 
 ### Phase 5: Type Event Handlers
-```typescript
-const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-  // ...
-}
-
-const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-  // ...
-}
-
-const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-  // ...
-}
-```
+- [ ] Type `handlePaste` parameter as `React.ClipboardEvent<HTMLTextAreaElement>`
+- [ ] Type `handleDrop` parameter as `React.DragEvent<HTMLDivElement>`
+- [ ] Type `handleKeyDown` parameter as `React.KeyboardEvent<HTMLTextAreaElement>`
+- [ ] Type `handleInputChange` parameter as `React.ChangeEvent<HTMLTextAreaElement>`
+- [ ] Type `handleSubmit` parameter as `React.FormEvent<HTMLFormElement>`
+- [ ] Type `handleFileSelect` parameter as `React.ChangeEvent<HTMLInputElement>`
+- [ ] Type all onClick handlers as `React.MouseEvent<HTMLButtonElement>`
+- [ ] Type onFocus/onBlur handlers appropriately
 
 ### Phase 6: Type Helper Functions
-- Add return types to all functions
-- Add parameter types to all functions
-- Use generics where appropriate
+- [ ] Type `formatUsageLimitText` parameters and return type
+- [ ] Type `parseAnsiToHtml` parameters and return type
+- [ ] Type `createDiff` parameters and return type
+- [ ] Type `loadSessionMessages` parameters and return type
+- [ ] Type `loadCursorSessionMessages` parameters and return type
+- [ ] Type `convertSessionMessages` parameters and return type
+- [ ] Type `flattenFileTree` parameters and return type
+- [ ] Type `handleTranscript` parameters
+- [ ] Type `loadEarlierMessages` function
+- [ ] Add return types to all useCallback functions
 
-### Phase 7: Fix API Types
-Update `api.ts` to include:
-```typescript
-interface API {
-  sessionMessages: (projectName: string, sessionId: string, limit?: number | null, offset?: number) => Promise<Response>;
-  config: () => Promise<Response>;
-  projects?: () => Promise<Response>;
-  sessions?: (projectName: string, limit?: number, offset?: number) => Promise<Response>;
-  getFiles?: (projectName: string) => Promise<Response>;
-}
-```
+### Phase 7: Fix API and External Types
+- [ ] Add `getFiles` method to api.ts or create extended interface
+- [ ] Define window.refreshProjects type augmentation
+- [ ] Create global.d.ts for window extensions
+- [ ] Add type for ImageAttachment component props
+- [ ] Type the useDropzone configuration
+- [ ] Fix ReactMarkdown component props typing
 
-### Phase 8: Type External Dependencies
-- Create type declarations for window extensions
-- Import proper types from shared modules
-- Define global augmentations for window object
+### Phase 8: Type Memoized Components
+- [ ] Type MessageBlock component props interface
+- [ ] Fix the memo wrapper typing for MessageBlock
+- [ ] Type all props passed to MessageBlock
+- [ ] Type ImageAttachment component and its props
+- [ ] Ensure all child components receive typed props
 
-### Phase 9: Fix Component Prop Drilling
-- Ensure all child components receive properly typed props
-- Update MessageBlock and other memoized components
+### Phase 9: Fix Remaining Type Errors
+- [ ] Fix arithmetic operation type errors (lines 1789)
+- [ ] Fix window.refreshProjects references
+- [ ] Fix api.getFiles method call
+- [ ] Fix clipboard data type assertions
+- [ ] Fix file upload type assertions
+- [ ] Type the reasoning property on messages
 
 ### Phase 10: Testing and Validation
-- Run TypeScript compiler with strict mode
-- Fix any remaining type errors
-- Ensure no functionality is broken
+- [ ] Run `npx tsc --noEmit` to check for type errors
+- [ ] Run `npm run typecheck` to validate
+- [ ] Fix any remaining type errors
+- [ ] Test component functionality hasn't broken
+- [ ] Run linter to check for new issues
+- [ ] Verify hot reload still works in dev mode
 
 ## Types to Define (After Reusing Existing)
 
