@@ -153,7 +153,6 @@ async function spawnClaude(
     // Set up message handlers to stream responses
     query = query
       .onMessage((msg: Message) => {
-        console.log('message', JSON.stringify(msg, null, 2));
         // Send message to output
         sendMessage(output, {
           type: 'claude-response',
@@ -162,14 +161,12 @@ async function spawnClaude(
       })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .onAssistant((content: any) => {
-        console.log(`assistant response`, JSON.stringify(content, null, 2));
         sendMessage(output, {
           type: 'claude-response',
           data: content,
         });
       })
       .onToolUse((tool: unknown) => {
-        console.log(`tool use`, JSON.stringify(tool, null, 2));
         sendMessage(output, {
           type: 'claude-response',
           data: { type: 'tool_use', tool },

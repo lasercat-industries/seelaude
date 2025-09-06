@@ -908,7 +908,33 @@ function ChatInterface({
           
           // Debug log to see what we're processing
           if (typedMessage && typedMessage.type === 'assistant') {
-            console.log('[ChatInterface] Processing assistant message:', typedMessage);
+            // console.log('[ChatInterface] Processing assistant message:', typedMessage);
+          }
+          
+          // Handle tool_result messages that come through claude-response
+          if (typedMessage && typedMessage.type === 'tool_result') {
+            const resultContent = (typedMessage as any).content?.[0];
+            
+            if (resultContent?.tool_use_id) {
+              // This is a tool result - add it as a separate message
+              setChatMessages(prev => [...prev, {
+                type: 'tool_result' as const,
+                content: resultContent.content || '',
+                isError: resultContent.is_error || false,
+                toolUseId: resultContent.tool_use_id,
+                timestamp: new Date().toISOString(),
+                sessionId: currentSessionId || 'temp',
+              }]);
+            } else if (resultContent?.type === 'text') {
+              // This is hook feedback - add as a new message
+              setChatMessages(prev => [...prev, {
+                type: 'hook_feedback' as const,
+                content: resultContent.text,
+                timestamp: new Date().toISOString(),
+                sessionId: currentSessionId || 'temp',
+              }]);
+            }
+            break; // Exit early since we handled the tool_result
           }
           
           if (typedMessage && 'content' in typedMessage && Array.isArray((typedMessage as AssistantMessage).content)) {
@@ -1138,6 +1164,7 @@ function ChatInterface({
           }
           break;
         }
+
       }
     }
   }, [messages]);
