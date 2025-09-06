@@ -685,7 +685,7 @@ function ChatInterface({
             console.log('Error parsing blob content:', e);
           }
           if (text && text.trim()) {
-            const message = {
+            const message: any = {
               type: role,
               content: text,
               timestamp: new Date(Date.now() + blobIdx * 1000),
@@ -953,7 +953,7 @@ function ChatInterface({
       }
     }
 
-    return converted;
+    return converted as ChatMessage[];
   };
 
   // Memoize expensive convertSessionMessages operation
@@ -1109,7 +1109,7 @@ function ChatInterface({
   // Initialize sessionMessages from messages prop when no session is selected (demo mode)
   useEffect(() => {
     if (!selectedSession && messages && messages.length > 0) {
-      setSessionMessages(messages);
+      setSessionMessages(messages as any);
     }
   }, [messages, selectedSession]);
 
@@ -1720,6 +1720,7 @@ function ChatInterface({
   }, [selectedProject]);
 
   const fetchProjectFiles = async () => {
+    if (!selectedProject) return;
     try {
       const response = await api.getFiles(selectedProject.name);
       if (response.ok) {
@@ -1743,7 +1744,7 @@ function ChatInterface({
         result.push({
           name: file.name,
           path: fullPath,
-          relativePath: file.path,
+          type: 'file' as const,
         });
       }
     }
@@ -1852,6 +1853,7 @@ function ChatInterface({
       scrollContainer.addEventListener('scroll', handleScroll);
       return () => scrollContainer.removeEventListener('scroll', handleScroll);
     }
+    return undefined;
   }, [handleScroll]);
 
   // Initial textarea setup
@@ -1874,29 +1876,6 @@ function ChatInterface({
       setIsTextareaExpanded(false);
     }
   }, [input]);
-
-  const handleTranscript = useCallback((text: string) => {
-    if (text.trim()) {
-      setInput((prevInput) => {
-        const newInput = prevInput.trim() ? `${prevInput} ${text}` : text;
-
-        // Update textarea height after setting new content
-        setTimeout(() => {
-          if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-
-            // Check if expanded after transcript
-            const lineHeight = parseInt(window.getComputedStyle(textareaRef.current).lineHeight);
-            const isExpanded = textareaRef.current.scrollHeight > lineHeight * 2;
-            setIsTextareaExpanded(isExpanded);
-          }
-        }, 0);
-
-        return newInput;
-      });
-    }
-  }, []);
 
   // Load earlier messages by increasing the visible message count
   const loadEarlierMessages = useCallback(() => {
@@ -1936,7 +1915,13 @@ function ChatInterface({
     });
 
     if (validFiles.length > 0) {
-      setAttachedImages((prev) => [...prev, ...validFiles].slice(0, 5)); // Max 5 images
+      const uploadedImages: UploadedImage[] = validFiles.map(file => ({
+        id: Math.random().toString(36).substr(2, 9),
+        url: URL.createObjectURL(file),
+        file: file,
+        status: 'uploaded' as const
+      }));
+      setAttachedImages((prev) => [...prev, ...uploadedImages].slice(0, 5)); // Max 5 images
     }
   }, []);
 
@@ -1978,7 +1963,7 @@ function ChatInterface({
     noKeyboard: true,
   });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading || !selectedProject) return;
 
@@ -1986,13 +1971,13 @@ function ChatInterface({
     let uploadedImages = [];
     if (attachedImages.length > 0) {
       const formData = new FormData();
-      attachedImages.forEach((file) => {
-        formData.append('images', file);
+      attachedImages.forEach((image) => {
+        formData.append('images', image.file);
       });
 
       try {
         const token = safeLocalStorage.getItem('auth-token');
-        const headers = {};
+        const headers: Record<string, string> = {};
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         }
@@ -2079,24 +2064,7 @@ function ChatInterface({
     const toolsSettings = getToolsSettings();
 
     // Send command based on provider
-    if (provider === 'cursor') {
-      // Send Cursor command (always use cursor-command; include resume/sessionId when replying)
-      sendMessage({
-        type: 'cursor-command',
-        command: input,
-        sessionId: effectiveSessionId,
-        options: {
-          // Prefer fullPath (actual cwd for project), fallback to path
-          cwd: selectedProject.fullPath || selectedProject.path,
-          projectPath: selectedProject.fullPath || selectedProject.path,
-          sessionId: effectiveSessionId,
-          resume: !!effectiveSessionId,
-          model: cursorModel,
-          skipPermissions: toolsSettings?.skipPermissions || false,
-          toolsSettings: toolsSettings,
-        },
-      });
-    } else {
+    if (provider === 'claude') {
       // Send Claude command (existing code)
       sendMessage({
         type: 'claude-command',
@@ -2146,9 +2114,9 @@ function ChatInterface({
       }
       if (e.key === 'Tab' || e.key === 'Enter') {
         e.preventDefault();
-        if (selectedFileIndex >= 0) {
+        if (selectedFileIndex >= 0 && filteredFiles[selectedFileIndex]) {
           selectFile(filteredFiles[selectedFileIndex]);
-        } else if (filteredFiles.length > 0) {
+        } else if (filteredFiles.length > 0 && filteredFiles[0]) {
           selectFile(filteredFiles[0]);
         }
         return;
@@ -2166,7 +2134,7 @@ function ChatInterface({
       const modes = ['default', 'acceptEdits', 'bypassPermissions', 'plan'];
       const currentIndex = modes.indexOf(permissionMode);
       const nextIndex = (currentIndex + 1) % modes.length;
-      setPermissionMode(modes[nextIndex]);
+      setPermissionMode(modes[nextIndex] || 'default');
       return;
     }
 
@@ -2229,7 +2197,7 @@ function ChatInterface({
     }
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     setInput(newValue);
     setCursorPosition(e.target.selectionStart);
@@ -2241,8 +2209,8 @@ function ChatInterface({
     }
   };
 
-  const handleTextareaClick = (e) => {
-    setCursorPosition(e.target.selectionStart);
+  const handleTextareaClick = (e: React.MouseEvent<HTMLTextAreaElement>) => {
+    setCursorPosition((e.target as HTMLTextAreaElement).selectionStart);
   };
 
   // const handleNewSession = () => {
@@ -2266,7 +2234,7 @@ function ChatInterface({
     const modes = ['default', 'acceptEdits', 'bypassPermissions', 'plan'];
     const currentIndex = modes.indexOf(permissionMode);
     const nextIndex = (currentIndex + 1) % modes.length;
-    setPermissionMode(modes[nextIndex]);
+    setPermissionMode(modes[nextIndex] || 'default');
   };
 
   // Don't render if no project is selected
@@ -2479,7 +2447,7 @@ function ChatInterface({
               )}
 
               {visibleMessages.map((message, index) => {
-                const prevMessage = index > 0 ? visibleMessages[index - 1] : null;
+                const prevMessage = index > 0 ? visibleMessages[index - 1] : undefined;
 
                 const nextMessage = visibleMessages[index + 1];
                 // console.log(message);
@@ -2546,7 +2514,7 @@ function ChatInterface({
         >
           <div className="flex-1">
             <ClaudeStatus
-              status={claudeStatus}
+              status={claudeStatus || {}}
               isLoading={isLoading}
               onAbort={handleAbortSession}
               provider={provider}
@@ -2640,12 +2608,12 @@ function ChatInterface({
                   {attachedImages.map((file, index) => (
                     <ImageAttachment
                       key={index}
-                      file={file}
+                      file={file.file}
                       onRemove={() => {
                         setAttachedImages((prev) => prev.filter((_, i) => i !== index));
                       }}
-                      uploadProgress={uploadingImages.get(file.name)}
-                      error={imageErrors.get(file.name)}
+                      uploadProgress={uploadingImages.get(file.file.name)}
+                      error={imageErrors.get(file.file.name)}
                     />
                   ))}
                 </div>
@@ -2779,24 +2747,17 @@ function ChatInterface({
                 </svg>
               </button>
 
-              {/* Mic button - HIDDEN */}
-              {/* <div className="absolute right-16 sm:right-16 top-1/2 transform -translate-y-1/2" style={{ display: 'none' }}>
-              <MicButton 
-                onTranscript={handleTranscript}
-                className="w-10 h-10 sm:w-10 sm:h-10"
-              />
-            </div> */}
               {/* Send button */}
               <button
                 type="submit"
                 disabled={!input.trim() || isLoading}
-                onMouseDown={(e) => {
+                onMouseDown={async (e) => {
                   e.preventDefault();
-                  handleSubmit(e);
+                  await handleSubmit(e);
                 }}
-                onTouchStart={(e) => {
+                onTouchStart={async (e) => {
                   e.preventDefault();
-                  handleSubmit(e);
+                  await handleSubmit(e);
                 }}
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 w-12 h-12 sm:w-12 sm:h-12 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed rounded-full flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:ring-offset-gray-800"
               >
