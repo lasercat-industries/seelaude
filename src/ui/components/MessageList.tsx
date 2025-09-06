@@ -1,17 +1,25 @@
 import React, { useRef, useEffect } from 'react';
-import type { SessionMessage } from '@shared/claude/types';
-import { MessageComponent } from './OldMessageComponent';
+import type { ChatMessage, DiffInfo } from './types';
+import { MessageComponent } from './MessageComponent';
 
 interface MessageListProps {
-  messages: SessionMessage[];
+  messages: ChatMessage[];
   className?: string;
   autoExpandTools?: boolean;
+  createDiff: (oldStr: string, newStr: string) => string;
+  onFileOpen: (path: string, diffInfo: DiffInfo | null) => void;
+  onShowSettings: () => void;
+  showRawParameters: boolean;
 }
-
+  
 export const MessageList: React.FC<MessageListProps> = ({
   messages,
   className = '',
   autoExpandTools = false,
+  createDiff,
+  onFileOpen,
+  onShowSettings,
+  showRawParameters,
 }) => {
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -33,9 +41,13 @@ export const MessageList: React.FC<MessageListProps> = ({
       {messages.map((message, index) => (
         <MessageComponent
           key={message.uuid || `${message.sessionId}-${index}`}
-          message={message as any}
-          prevMessage={index > 0 ? (messages[index - 1] as any) : undefined}
+          message={message}
+          prevMessage={index > 0 ? (messages[index - 1]) : undefined}
+          createDiff={createDiff}
+          onFileOpen={onFileOpen}
+          onShowSettings={onShowSettings}
           autoExpandTools={autoExpandTools}
+          showRawParameters={showRawParameters}
         />
       ))}
       <div ref={bottomRef} />

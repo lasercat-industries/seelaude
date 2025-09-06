@@ -114,6 +114,61 @@ const safeLocalStorage = {
   },
 };
 
+function formatUsageLimitText(text: string | unknown): string | unknown {
+  try {
+    if (typeof text !== 'string') return text;
+    return text.replace(/Claude AI usage limit reached\|(\d{10,13})/g, (match, ts) => {
+      let timestampMs = parseInt(ts, 10);
+      if (!Number.isFinite(timestampMs)) return match;
+      if (timestampMs < 1e12) timestampMs *= 1000; // seconds → ms
+      const reset = new Date(timestampMs);
+
+      // Time HH:mm in local time
+      const timeStr = new Intl.DateTimeFormat(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).format(reset);
+
+      // Human-readable timezone: GMT±HH[:MM] (City)
+      const offsetMinutesLocal = -reset.getTimezoneOffset();
+      const sign = offsetMinutesLocal >= 0 ? '+' : '-';
+      const abs = Math.abs(offsetMinutesLocal);
+      const offH = Math.floor(abs / 60);
+      const offM = abs % 60;
+      const gmt = `GMT${sign}${offH}${offM ? ':' + String(offM).padStart(2, '0') : ''}`;
+      const tzId = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      const cityRaw = tzId.split('/').pop() || '';
+      const city = cityRaw
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+      const tzHuman = city ? `${gmt} (${city})` : gmt;
+
+      // Readable date like "8 Jun 2025"
+      const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      const dateReadable = `${reset.getDate()} ${months[reset.getMonth()]} ${reset.getFullYear()}`;
+
+      return `Claude usage limit reached. Your limit will reset at **${timeStr} ${tzHuman}** - ${dateReadable}`;
+    });
+  } catch {
+    return text;
+  }
+}
+
 // ImageAttachment component for displaying image previews
 // eslint-disable-next-line no-unused-vars
 const ImageAttachment = ({ file, onRemove, uploadProgress, error }: ImageAttachmentProps) => {
@@ -127,7 +182,7 @@ const ImageAttachment = ({ file, onRemove, uploadProgress, error }: ImageAttachm
 
   return (
     <div className="relative group">
-      <img src={preview} alt={file.name} className="w-20 h-20 object-cover rounded" />
+      <img src={preview || undefined} alt={file.name} className="w-20 h-20 object-cover rounded" />
       {uploadProgress !== undefined && uploadProgress < 100 && (
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
           <div className="text-white text-xs">{uploadProgress}%</div>
@@ -266,7 +321,7 @@ function ChatInterface({
         .then((data) => {
           if (data.success && data.config?.model?.modelId) {
             // Map Cursor model IDs to our simplified names
-            const modelMap = {
+            const modelMap: Record<string, string> = {
               'gpt-5': 'gpt-5',
               'claude-4-sonnet': 'sonnet-4',
               'sonnet-4': 'sonnet-4',
@@ -285,8 +340,8 @@ function ChatInterface({
 
   // Memoized diff calculation to prevent recalculating on every render
   const createDiff = useMemo(() => {
-    const cache = new Map<string, string>();
-    return (oldStr: string, newStr: string) => {
+    const cache = new Map<string, Array<{ type: string; content: string | undefined; lineNum: number }>>();
+    return (oldStr: string, newStr: string): any => {
       const key = `${oldStr.length}-${newStr.length}-${oldStr.slice(0, 50)}`;
       if (cache.has(key)) {
         return cache.get(key)!;
@@ -296,7 +351,9 @@ function ChatInterface({
       cache.set(key, result);
       if (cache.size > 100) {
         const firstKey = cache.keys().next().value;
-        cache.delete(firstKey);
+        if (firstKey !== undefined) {
+          cache.delete(firstKey);
+        }
       }
       return result;
     };
@@ -366,7 +423,7 @@ function ChatInterface({
         const data = await res.json();
         const blobs = data?.session?.messages || [];
         const converted = [];
-        const toolUseMap = {}; // Map to store tool uses by ID for linking results
+        const toolUseMap: Record<string, any> = {}; // Map to store tool uses by ID for linking results
 
         // First pass: process all messages maintaining order
         for (let blobIdx = 0; blobIdx < blobs.length; blobIdx++) {
@@ -657,7 +714,7 @@ function ChatInterface({
             return a.rowid - b.rowid;
           }
           // Fallback to timestamp
-          return new Date(a.timestamp) - new Date(b.timestamp);
+          return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
         });
 
         return converted;
@@ -672,12 +729,12 @@ function ChatInterface({
   );
 
   // Actual diff calculation function
-  const calculateDiff = (oldStr: string, newStr: string): string => {
+  const calculateDiff = (oldStr: string, newStr: string): Array<{ type: string; content: string | undefined; lineNum: number }> => {
     const oldLines = oldStr.split('\n');
     const newLines = newStr.split('\n');
 
     // Simple diff algorithm - find common lines and differences
-    const diffLines = [];
+    const diffLines: Array<{ type: string; content: string | undefined; lineNum: number }> = [];
     let oldIndex = 0;
     let newIndex = 0;
 
@@ -1104,6 +1161,7 @@ function ChatInterface({
     // Handle WebSocket messages
     if (messages.length > 0) {
       const latestMessage = messages[messages.length - 1];
+      if (!latestMessage) return;
 
       switch (latestMessage.type) {
         case 'session-created':
@@ -1121,8 +1179,8 @@ function ChatInterface({
           }
           break;
 
-        case 'claude-response':
-          const messageData = latestMessage.data.message || latestMessage.data;
+        case 'claude-response': {
+          const messageData = (latestMessage.data as any).message || latestMessage.data;
 
           // Handle Cursor streaming format (content_block_delta / content_block_stop)
           if (messageData && typeof messageData === 'object' && messageData.type) {
@@ -1144,9 +1202,10 @@ function ChatInterface({
                       updated.push({
                         type: 'assistant',
                         content: chunk,
-                        timestamp: new Date(),
+                        timestamp: new Date().toISOString(),
                         isStreaming: true,
-                      });
+                        sessionId: currentSessionId || 'temp',
+                      } as ChatMessage);
                     }
                     return updated;
                   });
@@ -1172,8 +1231,9 @@ function ChatInterface({
                     updated.push({
                       type: 'assistant',
                       content: chunk,
-                      timestamp: new Date(),
+                      timestamp: new Date().toISOString(),
                       isStreaming: true,
+                      sessionId: currentSessionId || 'temp',
                     });
                   }
                   return updated;
@@ -1195,16 +1255,17 @@ function ChatInterface({
           // When resuming a session, Claude CLI creates a new session instead of resuming.
           // We detect this by checking for system/init messages with session_id that differs
           // from our current session. When found, we need to switch the user to the new session.
+          const cursorData = latestMessage.data as any;
           if (
-            latestMessage.data.type === 'system' &&
-            latestMessage.data.subtype === 'init' &&
-            latestMessage.data.session_id &&
+            cursorData.type === 'system' &&
+            cursorData.subtype === 'init' &&
+            cursorData.session_id &&
             currentSessionId &&
-            latestMessage.data.session_id !== currentSessionId
+            cursorData.session_id !== currentSessionId
           ) {
             console.log('🔄 Claude CLI session duplication detected:', {
               originalSession: currentSessionId,
-              newSession: latestMessage.data.session_id,
+              newSession: cursorData.session_id,
             });
 
             // Mark this as a system-initiated session change to preserve messages
@@ -1213,20 +1274,20 @@ function ChatInterface({
             // Switch to the new session using React Router navigation
             // This triggers the session loading logic in App.jsx without a page reload
             if (onNavigateToSession) {
-              onNavigateToSession(latestMessage.data.session_id);
+              onNavigateToSession(cursorData.session_id);
             }
             return; // Don't process the message further, let the navigation handle it
           }
 
           // Handle system/init for new sessions (when currentSessionId is null)
           if (
-            latestMessage.data.type === 'system' &&
-            latestMessage.data.subtype === 'init' &&
-            latestMessage.data.session_id &&
+            cursorData.type === 'system' &&
+            cursorData.subtype === 'init' &&
+            cursorData.session_id &&
             !currentSessionId
           ) {
             console.log('🔄 New session init detected:', {
-              newSession: latestMessage.data.session_id,
+              newSession: cursorData.session_id,
             });
 
             // Mark this as a system-initiated session change to preserve messages
@@ -1234,18 +1295,18 @@ function ChatInterface({
 
             // Switch to the new session
             if (onNavigateToSession) {
-              onNavigateToSession(latestMessage.data.session_id);
+              onNavigateToSession(cursorData.session_id);
             }
             return; // Don't process the message further, let the navigation handle it
           }
 
           // For system/init messages that match current session, just ignore them
           if (
-            latestMessage.data.type === 'system' &&
-            latestMessage.data.subtype === 'init' &&
-            latestMessage.data.session_id &&
+            cursorData.type === 'system' &&
+            cursorData.subtype === 'init' &&
+            cursorData.session_id &&
             currentSessionId &&
-            latestMessage.data.session_id === currentSessionId
+            cursorData.session_id === currentSessionId
           ) {
             console.log('🔄 System init message for current session, ignoring');
             return; // Don't process the message further
@@ -1262,12 +1323,13 @@ function ChatInterface({
                   {
                     type: 'assistant',
                     content: '',
-                    timestamp: new Date(),
+                    timestamp: new Date().toISOString(),
                     isToolUse: true,
                     toolName: part.name,
                     toolInput: toolInput,
                     toolId: part.id,
                     toolResult: null, // Will be updated when result comes in
+                    sessionId: currentSessionId || 'temp',
                   },
                 ]);
               } else if (part.type === 'text' && part.text?.trim()) {
@@ -1280,7 +1342,8 @@ function ChatInterface({
                   {
                     type: 'assistant',
                     content: content,
-                    timestamp: new Date(),
+                    timestamp: new Date().toISOString(),
+                    sessionId: currentSessionId || 'temp',
                   },
                 ]);
               }
@@ -1295,7 +1358,7 @@ function ChatInterface({
               {
                 type: 'assistant',
                 content: content,
-                timestamp: new Date(),
+                timestamp: new Date().toISOString(),
               },
             ]);
           }
@@ -1313,7 +1376,7 @@ function ChatInterface({
                         toolResult: {
                           content: part.content,
                           isError: part.is_error,
-                          timestamp: new Date(),
+                          timestamp: new Date().toISOString(),
                         },
                       };
                     }
@@ -1324,10 +1387,11 @@ function ChatInterface({
             }
           }
           break;
+        }
 
         case 'claude-output':
           {
-            const cleaned = String(latestMessage.data || '');
+            const cleaned = String((latestMessage.data as any) || '');
             if (cleaned.trim()) {
               streamBufferRef.current += streamBufferRef.current ? `\n${cleaned}` : cleaned;
               if (!streamTimerRef.current) {
@@ -1345,9 +1409,10 @@ function ChatInterface({
                       updated.push({
                         type: 'assistant',
                         content: chunk,
-                        timestamp: new Date(),
+                        timestamp: new Date().toISOString(),
                         isStreaming: true,
-                      });
+                        sessionId: currentSessionId || 'temp',
+                      } as ChatMessage);
                     }
                     return updated;
                   });
@@ -1362,9 +1427,10 @@ function ChatInterface({
             ...prev,
             {
               type: 'assistant',
-              content: latestMessage.data,
-              timestamp: new Date(),
+              content: (latestMessage.data as any),
+              timestamp: new Date().toISOString(),
               isInteractivePrompt: true,
+              sessionId: currentSessionId || 'temp',
             },
           ]);
           break;
@@ -1375,7 +1441,7 @@ function ChatInterface({
             {
               type: 'error',
               content: `Error: ${latestMessage.error}`,
-              timestamp: new Date(),
+              timestamp: new Date().toISOString(),
             },
           ]);
           break;
@@ -1383,7 +1449,7 @@ function ChatInterface({
         case 'cursor-system':
           // Handle Cursor system/init messages similar to Claude
           try {
-            const cdata = latestMessage.data;
+            const cdata = latestMessage.data as any;
             if (cdata && cdata.type === 'system' && cdata.subtype === 'init' && cdata.session_id) {
               // If we already have a session and this differs, switch (duplication/redirect)
               if (currentSessionId && cdata.session_id !== currentSessionId) {
@@ -1427,7 +1493,7 @@ function ChatInterface({
             {
               type: 'assistant',
               content: `Using tool: ${latestMessage.tool} ${latestMessage.input ? `with ${latestMessage.input}` : ''}`,
-              timestamp: new Date(),
+              timestamp: new Date().toISOString(),
               isToolUse: true,
               toolName: latestMessage.tool,
               toolInput: latestMessage.input,
@@ -1442,7 +1508,7 @@ function ChatInterface({
             {
               type: 'error',
               content: `Cursor error: ${latestMessage.error || 'Unknown error'}`,
-              timestamp: new Date(),
+              timestamp: new Date().toISOString(),
             },
           ]);
           break;
@@ -1453,7 +1519,7 @@ function ChatInterface({
           setCanAbortSession(false);
           setClaudeStatus(null);
           try {
-            const r = latestMessage.data || {};
+            const r = (latestMessage.data as any) || {};
             const textResult = typeof r.result === 'string' ? r.result : '';
             // Flush buffered deltas before finalizing
             if (streamTimerRef.current) {
@@ -1479,7 +1545,7 @@ function ChatInterface({
                 updated.push({
                   type: r.is_error ? 'error' : 'assistant',
                   content: textResult,
-                  timestamp: new Date(),
+                  timestamp: new Date().toISOString(),
                   isStreaming: false,
                 });
               }
@@ -1510,7 +1576,7 @@ function ChatInterface({
         case 'cursor-output':
           // Handle Cursor raw terminal output; strip ANSI and ignore empty control-only payloads
           try {
-            const raw = String(latestMessage.data ?? '');
+            const raw = String((latestMessage.data as any) ?? '');
             const cleaned = raw
               .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '')
               .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
@@ -1532,9 +1598,10 @@ function ChatInterface({
                       updated.push({
                         type: 'assistant',
                         content: chunk,
-                        timestamp: new Date(),
+                        timestamp: new Date().toISOString(),
                         isStreaming: true,
-                      });
+                        sessionId: currentSessionId || 'temp',
+                      } as ChatMessage);
                     }
                     return updated;
                   });
@@ -1593,14 +1660,14 @@ function ChatInterface({
             {
               type: 'assistant',
               content: 'Session interrupted by user.',
-              timestamp: new Date(),
+              timestamp: new Date().toISOString(),
             },
           ]);
           break;
 
         case 'claude-status':
           // Handle Claude working status messages
-          const statusData = latestMessage.data;
+          const statusData = latestMessage.data as any;
           if (statusData) {
             // Parse the status message to extract relevant information
             let statusInfo = {
@@ -1943,7 +2010,7 @@ function ChatInterface({
           {
             type: 'error',
             content: `Failed to upload images: ${error.message}`,
-            timestamp: new Date(),
+            timestamp: new Date().toISOString(),
           },
         ]);
         return;
@@ -1954,7 +2021,7 @@ function ChatInterface({
       type: 'user',
       content: input,
       images: uploadedImages,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
     };
 
     setChatMessages((prev) => [...prev, userMessage]);
