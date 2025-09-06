@@ -98,7 +98,6 @@
     "hono": "4.x"
   },
   "dependencies": {
-    "@instantlyeasy/claude-code-sdk-ts": "^0.3.3",
     "@types/ws": "^8.18.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.542.0",

@@ -829,11 +829,13 @@ function ChatInterface({
           break;
 
         case 'claude-response': {
-          const responseData = latestMessage.data as ClaudeResponseData;
-          const messageData = responseData?.message || latestMessage.data;
-
-          // Handle Cursor streaming format (content_block_delta / content_block_stop)
-          if (responseData && responseData.type) {
+          // The data can be either a Message directly or a ClaudeResponseData wrapper
+          const rawData = latestMessage.data;
+          
+          // Check if this is a streaming message (has delta or is content_block_stop)
+          if (rawData && typeof rawData === 'object' && 'type' in rawData && 
+              ((rawData as any).type === 'content_block_delta' || (rawData as any).type === 'content_block_stop')) {
+            const responseData = rawData as ClaudeResponseData;
             if (responseData.type === 'content_block_delta' && responseData.delta?.text) {
               // Buffer deltas and flush periodically to reduce rerenders
               streamBufferRef.current += responseData.delta.text;
@@ -901,7 +903,14 @@ function ChatInterface({
             }
           }
           // Handle different types of content in the response
-          const typedMessage = messageData as Message;
+          // At this point, rawData should be a Message object
+          const typedMessage = rawData as Message;
+          
+          // Debug log to see what we're processing
+          if (typedMessage && typedMessage.type === 'assistant') {
+            console.log('[ChatInterface] Processing assistant message:', typedMessage);
+          }
+          
           if (typedMessage && 'content' in typedMessage && Array.isArray((typedMessage as AssistantMessage).content)) {
             for (const part of (typedMessage as AssistantMessage).content) {
               if (part.type === 'tool_use') {

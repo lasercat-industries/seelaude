@@ -1153,7 +1153,7 @@ export const MessageComponent = memo<MessageComponentProps>(
                           p: ({ children }) => <div className="mb-2 last:mb-0">{children}</div>,
                         }}
                       >
-                        {formatUsageLimitText(String(message.content || ''))}
+                        {formatUsageLimitText(String(message.content || '')).replace(/\n/g, '  \n')}
                       </ReactMarkdown>
                     </div>
                   ) : (
