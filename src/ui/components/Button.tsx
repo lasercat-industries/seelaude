@@ -1,6 +1,6 @@
 import React, { forwardRef, type ButtonHTMLAttributes } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from '../utilities/cn';
+import { cn } from '../utils/cn';
 
 const buttonVariants = cva(
   'font-semibold shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors',

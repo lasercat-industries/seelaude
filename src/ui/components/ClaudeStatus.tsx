@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { cn } from '../utilities/cn';
+import { cn } from '../utils/cn';
 
-function ClaudeStatus({ status, onAbort, isLoading, provider = 'claude' }) {
+export interface ClaudeStatusProps {
+  status: {
+    text?: string;
+    tokens?: number;
+    can_interrupt?: boolean;
+  }
+  onAbort: () => void;
+  isLoading: boolean;
+  provider?: string;
+}
+
+function ClaudeStatus({ status, onAbort, isLoading }: ClaudeStatusProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [animationPhase, setAnimationPhase] = useState(0);
   const [fakeTokens, setFakeTokens] = useState(0);

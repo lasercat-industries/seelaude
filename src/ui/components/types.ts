@@ -30,7 +30,6 @@ export interface ChatInterfaceProps {
   autoScrollToBottom: boolean;
   sendByCtrlEnter: boolean;
   onShowAllTasks: () => void;
-  onTaskClick?: (task: any) => void;
   ws?: WebSocket | null;
 }
 
@@ -136,16 +135,6 @@ export interface PaginationState {
 }
 
 /**
- * Tool usage information
- */
-export interface ToolUsage {
-  toolName: string;
-  toolId?: string;
-  toolInput?: any;
-  isExpanded?: boolean;
-}
-
-/**
  * Diff display options
  */
 export interface DiffOptions {
@@ -223,8 +212,6 @@ export interface TextareaState {
  */
 export interface StreamState {
   buffer: string;
-  timer: NodeJS.Timeout | null;
+  timer: typeof setTimeout | null;
   isStreaming: boolean;
 }
-
-export default ChatInterfaceProps;

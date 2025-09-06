@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import type { ChatMessage, DiffInfo } from './ChatInterfaceNew.types';
+import type { ChatMessage, DiffInfo } from './types';
 import ClaudeLogo from './ClaudeLogo.jsx';
 import TodoList from './TodoList';
 
@@ -1064,17 +1064,20 @@ export const MessageComponent = memo<MessageComponentProps>(
                 // Simple TodoWrite tool indicator with tasks
                 (() => {
                   try {
-                    const input = JSON.parse(message.toolInput);
-                    if (input.todos && Array.isArray(input.todos)) {
-                      return (
-                        <div className="bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-300 dark:border-blue-600 pl-3 py-1 mb-2">
-                          <div className="text-sm text-blue-700 dark:text-blue-300 mb-2">
-                            📝 Update todo list
+                    if (message?.toolInput) {
+                      const input = JSON.parse(message.toolInput);
+                      if (input.todos && Array.isArray(input.todos)) {
+                        return (
+                          <div className="bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-300 dark:border-blue-600 pl-3 py-1 mb-2">
+                            <div className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                              📝 Update todo list
+                            </div>
+                            <TodoList todos={input.todos} />
                           </div>
-                          <TodoList todos={input.todos} />
-                        </div>
-                      );
+                        );
+                      }
                     }
+                    return null;
                   } catch (e) {
                     return (
                       <div className="bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-300 dark:border-blue-600 pl-3 py-1 mb-2 text-sm text-blue-700 dark:text-blue-300">
