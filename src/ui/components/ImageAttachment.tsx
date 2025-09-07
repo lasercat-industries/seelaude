@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from 'react';
 
 /**
  * Image attachment component props
@@ -9,7 +9,6 @@ export interface ImageAttachmentProps {
   uploadProgress?: number;
   error?: string;
 }
-
 
 // ImageAttachment component for displaying image previews
 const ImageAttachment = ({ file, onRemove, uploadProgress, error }: ImageAttachmentProps) => {

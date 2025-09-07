@@ -6,7 +6,7 @@ export interface ClaudeStatusProps {
     text?: string;
     tokens?: number;
     can_interrupt?: boolean;
-  }
+  };
   onAbort: () => void;
   isLoading: boolean;
   provider?: string;

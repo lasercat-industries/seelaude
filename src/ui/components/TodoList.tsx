@@ -1,35 +1,34 @@
 import React from 'react';
 import { CheckCircle2, Clock, Circle } from 'lucide-react';
-import { cva } from "class-variance-authority"
-import { cn } from "../utils/cn"
+import { cva } from 'class-variance-authority';
+import { cn } from '../utils/cn';
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
   {
     variants: {
       variant: {
-        default:
-          "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
+        default: 'border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80',
         secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80',
         destructive:
-          "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
-        outline: "text-foreground",
+          'border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80',
+        outline: 'text-foreground',
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: 'default',
     },
-  }
-)
+  },
+);
 
-type BadgeProps = { className?: string, variant?: "default" | "secondary" | "destructive" | "outline" } & React.HTMLAttributes<HTMLDivElement>;
-
+type BadgeProps = {
+  className?: string;
+  variant?: 'default' | 'secondary' | 'destructive' | 'outline';
+} & React.HTMLAttributes<HTMLDivElement>;
 
 function Badge({ className, variant, ...props }: BadgeProps) {
-  return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
-  )
+  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
 }
 
 type TodoStatus = 'completed' | 'in_progress' | 'pending';
@@ -40,7 +39,7 @@ interface TodoListProps {
     id: string;
     content: string;
     status: TodoStatus;
-    priority: TodoPriority
+    priority: TodoPriority;
   }>;
   isResult?: boolean;
 }
@@ -93,22 +92,22 @@ const TodoList = ({ todos, isResult = false }: TodoListProps) => {
           Todo List ({todos.length} {todos.length === 1 ? 'item' : 'items'})
         </div>
       )}
-      
+
       {todos.map((todo, index) => (
         <div
           key={todo.id || `todo-${index}`}
           className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md dark:shadow-gray-900/50 transition-shadow"
         >
-          <div className="flex-shrink-0 mt-0.5">
-            {getStatusIcon(todo.status)}
-          </div>
-          
+          <div className="flex-shrink-0 mt-0.5">{getStatusIcon(todo.status)}</div>
+
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2 mb-2">
-              <p className={`text-sm font-medium ${todo.status === 'completed' ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}`}>
+              <p
+                className={`text-sm font-medium ${todo.status === 'completed' ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}`}
+              >
                 {todo.content}
               </p>
-              
+
               <div className="flex gap-1 flex-shrink-0">
                 <Badge
                   variant="outline"

@@ -164,7 +164,8 @@ async function testSessionResumption(): Promise<void> {
       await wait2(5000); // 5 second timeout for resumed sessions
     } catch (timeoutError) {
       console.log(
-        `${colors.yellow}  ⚠ Session resume didn't send completion signal (may be normal)${colors.reset}`, timeoutError,
+        `${colors.yellow}  ⚠ Session resume didn't send completion signal (may be normal)${colors.reset}`,
+        timeoutError,
       );
     }
     const resumedSessionId = await promise2;

@@ -19,7 +19,6 @@ function isDuplexStream(output: WebSocket | Writable | Duplex): output is Duplex
 // Helper function to send data to either WebSocket or Stream
 function sendMessage(output: WebSocket | Writable | Duplex, message: WebSocketMessage): void {
   const jsonString = JSON.stringify(message);
-
   if (isWebSocket(output)) {
     output.send(jsonString);
   } else if (isDuplexStream(output)) {
@@ -313,8 +312,4 @@ function createStreamWrapper(): {
   };
 }
 
-export {
-  spawnClaude,
-  abortClaudeSession,
-  createStreamWrapper,
-};
+export { spawnClaude, abortClaudeSession, createStreamWrapper };

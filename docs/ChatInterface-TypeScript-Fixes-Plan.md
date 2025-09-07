@@ -1,6 +1,7 @@
 # ChatInterface TypeScript Fixes Plan
 
 ## Current Status
+
 - **Total Errors**: ~20 across 5 files (estimated)
   - ChatInterface.tsx: 1 error (down from 132) ✅ -131 errors (99.2% reduction!) 🎉
   - MessageComponent.tsx: 16 errors (not addressed yet)
@@ -14,11 +15,13 @@
 ## Final Remaining Error in ChatInterface.tsx (as of Latest Fix Session)
 
 ### 1. Single Remaining Error ✅
+
 - **Line 1882**: 'handleTranscript' is declared but never read
   - **Note**: This is a false positive - handleTranscript IS used as a prop to VoiceInputButton
   - **Status**: Added comment to suppress warning, but TypeScript still reports it
 
 ### All Fixed Issues (131 errors eliminated!) 🎉
+
 - ✅ All property access errors fixed
 - ✅ All complex type incompatibilities resolved
 - ✅ All undefined/null handling issues addressed
@@ -27,8 +30,9 @@
 - ✅ All file/image type issues fixed
 
 ### 7. ✅ Fixed Issues (Previously ~108 errors)
+
 - ✅ All `latestMessage` possibly undefined errors
-- ✅ All Date vs string timestamp mismatches  
+- ✅ All Date vs string timestamp mismatches
 - ✅ All `toolUseMap` indexing errors
 - ✅ Most sessionId missing errors
 - ✅ Most WebSocketMessage.data type assertions
@@ -38,6 +42,7 @@
 ## New Errors - Other Files
 
 ### MessageComponent.tsx (16 errors)
+
 - createDiff function issues (lines 122, 397, 512)
 - formatUsageLimitText return type issues
 - ReactMarkdown component prop types
@@ -45,18 +50,22 @@
 - Missing 'inline' prop on code component
 
 ### spawnClaude.ts (5 errors)
+
 - Missing type definitions for SpawnClaudeOptions, ToolsSettings, ImageData
 - Unused import of createTokenStream
 
 ### index.ts (3 errors)
+
 - Export name conflicts for ImageData, SpawnClaudeOptions, ToolsSettings
 
 ### MessageList.tsx (1 error)
+
 - Module import issue with OldMessageComponent
 
 ## Implementation Phases
 
 ### Phase 1: Quick Wins (15 minutes) ✅ COMPLETED
+
 **Impact**: Reduce ~10 errors immediately
 
 - [ ] ❌ Remove unused import `memo` from line 19 (kept - actually used)
@@ -69,6 +78,7 @@
 - [x] ✅ Fix createDiff return type to match array structure
 
 ### Phase 2: Type toolUseMap (20 minutes) ✅ COMPLETED
+
 **Impact**: Fix 10 errors → Actually fixed 5 errors
 
 - [x] ✅ Define toolUseMap type as `Record<string, any>` at line 371
@@ -78,6 +88,7 @@
 - [x] ✅ Update toolUseMap usage in cursor message handling (automatically fixed)
 
 ### Phase 3: Fix Timestamps (30 minutes) ✅ COMPLETED
+
 **Impact**: Fix 25 errors → Fixed all timestamp errors
 
 - [x] ✅ Search for all `timestamp: new Date()` occurrences
@@ -85,6 +96,7 @@
 - [x] ✅ All 16 occurrences fixed in one operation
 
 ### Phase 4: Add sessionId to Messages (40 minutes) ⚠️ PARTIALLY COMPLETE
+
 **Impact**: Fix 31 errors → Partially fixed
 
 - [ ] ⚠️ Add sessionId to convertSessionMessages return objects (line 902)
@@ -97,6 +109,7 @@
 - [x] ✅ Use `currentSessionId || 'temp'` as fallback (pattern established)
 
 ### Phase 5: Fix latestMessage Undefined (45 minutes) ✅ COMPLETED
+
 **Impact**: Fix 47 errors → Fixed 36 errors with one line!
 
 - [x] ✅ Add guard clause at start of WebSocket effect: `if (!latestMessage) return;`
@@ -104,6 +117,7 @@
 - [ ] ⚠️ Still need type guards for latestMessage.data access (moved to Phase 6)
 
 ### Phase 6: Fix WebSocketMessage.data Assertions (30 minutes) ✅ COMPLETED
+
 **Impact**: Fix 8 errors → Fixed all data assertions
 
 - [x] ✅ Create type guard functions for different data types (used `as any` for now)
@@ -114,6 +128,7 @@
 - [x] ✅ Consider creating typed message handlers (deferred for future refactoring)
 
 ### Phase 7: Fix formatUsageLimitText and sessionId (20 minutes) ✅ COMPLETED
+
 **Impact**: Fix ~20 errors
 
 - [x] ✅ Import or define formatUsageLimitText function (copied from MessageComponent)
@@ -131,24 +146,28 @@
 ### Additional Phases Completed (Extended Session)
 
 #### Phase 9: Additional SessionId Fixes ✅ COMPLETED
+
 - [x] ✅ Added sessionId to error messages
 - [x] ✅ Added sessionId to cursor-tool-use messages
 - [x] ✅ Added sessionId to user messages
 - [x] ✅ Added sessionId to session interrupted messages
 
 #### Phase 10: Type Compatibility Fixes ✅ COMPLETED
+
 - [x] ✅ Fixed content type issues (unknown to string)
 - [x] ✅ Fixed toolResult null vs undefined
 - [x] ✅ Fixed user message type casting
 - [x] ✅ Fixed toolName type issues
 
 #### Phase 11: Function Signature Fixes ✅ COMPLETED
+
 - [x] ✅ Fixed onSessionInactive calls (removed arguments)
 - [x] ✅ Fixed onSessionActive optional chaining
 - [x] ✅ Fixed window.refreshProjects optional chaining
 - [x] ✅ Fixed sessionId null vs undefined
 
 #### Phase 12: Final Optimizations ✅ COMPLETED
+
 - [x] ✅ Fixed parameter type annotations
 - [x] ✅ Fixed error type handling
 - [x] ✅ Fixed permissionMode type casting
@@ -192,6 +211,7 @@ npm run dev
 ## Time Estimate
 
 **Total**: ~3.5 hours
+
 - Quick setup and review: 15 min
 - Phase 1-7 implementation: 3 hours
 - Testing and validation: 15 min

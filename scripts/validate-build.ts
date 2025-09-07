@@ -40,12 +40,12 @@ async function validateBuild(): Promise<void> {
     // @ts-expect-error - Built JS files don't have type declarations
     await import('../dist/ui/index.js');
     console.log('✅ UI bundle import works');
-    
+
     // Import server bundle
     // @ts-expect-error - Built JS files don't have type declarations
     await import('../dist/server/index.js');
     console.log('✅ Server bundle import works');
-    
+
     console.log('✅ ESM validation complete');
     process.exit(0);
   } catch (error) {

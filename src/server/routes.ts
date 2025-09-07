@@ -7,8 +7,7 @@ import { spawnClaude, abortClaudeSession } from './claude/spawnClaude';
 const PORT = process.env.PORT || 3000;
 const connectedClients = new Set();
 
-export const ws = new Hono()
-.get(
+export const ws = new Hono().get(
   '/ws',
   upgradeWebSocket(() => {
     return {

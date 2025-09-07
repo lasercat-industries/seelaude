@@ -72,7 +72,10 @@ export interface MessageComponentProps {
   message: ChatMessage;
   prevMessage?: ChatMessage;
   nextMessage?: ChatMessage;
-  createDiff: (oldStr: string, newStr: string) => Array<{ type: string; content: string | undefined; lineNum?: number }>;
+  createDiff: (
+    oldStr: string,
+    newStr: string,
+  ) => Array<{ type: string; content: string | undefined; lineNum?: number }>;
   onFileOpen: (path: string, diffInfo: DiffInfo | null) => void;
   onShowSettings: () => void;
   autoExpandTools: boolean;
@@ -396,7 +399,10 @@ export const MessageComponent = memo<MessageComponentProps>(
                                   </div>
                                   <div className="text-xs font-mono">
                                     {createDiff(input.old_string, input.new_string).map(
-                                      (diffLine: { type: string; content: string | undefined }, i: number) => (
+                                      (
+                                        diffLine: { type: string; content: string | undefined },
+                                        i: number,
+                                      ) => (
                                         <div key={i} className="flex">
                                           <span
                                             className={`w-8 text-center border-r ${
@@ -511,28 +517,33 @@ export const MessageComponent = memo<MessageComponentProps>(
                                       </span>
                                     </div>
                                     <div className="text-xs font-mono">
-                                      {createDiff('', input.content).map((diffLine: { type: string; content: string | undefined }, i: number) => (
-                                        <div key={i} className="flex">
-                                          <span
-                                            className={`w-8 text-center border-r ${
-                                              diffLine.type === 'removed'
-                                                ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800'
-                                                : 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800'
-                                            }`}
-                                          >
-                                            {diffLine.type === 'removed' ? '-' : '+'}
-                                          </span>
-                                          <span
-                                            className={`px-2 py-0.5 flex-1 whitespace-pre-wrap ${
-                                              diffLine.type === 'removed'
-                                                ? 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200'
-                                                : 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200'
-                                            }`}
-                                          >
-                                            {diffLine.content}
-                                          </span>
-                                        </div>
-                                      ))}
+                                      {createDiff('', input.content).map(
+                                        (
+                                          diffLine: { type: string; content: string | undefined },
+                                          i: number,
+                                        ) => (
+                                          <div key={i} className="flex">
+                                            <span
+                                              className={`w-8 text-center border-r ${
+                                                diffLine.type === 'removed'
+                                                  ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800'
+                                                  : 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800'
+                                              }`}
+                                            >
+                                              {diffLine.type === 'removed' ? '-' : '+'}
+                                            </span>
+                                            <span
+                                              className={`px-2 py-0.5 flex-1 whitespace-pre-wrap ${
+                                                diffLine.type === 'removed'
+                                                  ? 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200'
+                                                  : 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200'
+                                              }`}
+                                            >
+                                              {diffLine.content}
+                                            </span>
+                                          </div>
+                                        ),
+                                      )}
                                     </div>
                                   </div>
                                   {showRawParameters && (
@@ -1116,7 +1127,11 @@ export const MessageComponent = memo<MessageComponentProps>(
                     <div className="prose prose-sm max-w-none dark:prose-invert prose-gray [&_code]:!bg-transparent [&_code]:!p-0 [&_pre]:!bg-transparent [&_pre]:!border-0 [&_pre]:!p-0">
                       <ReactMarkdown
                         components={{
-                          code: ({ inline, children, ...props }: { inline?: boolean; } & React.HTMLAttributes<HTMLDivElement>) => {
+                          code: ({
+                            inline,
+                            children,
+                            ...props
+                          }: { inline?: boolean } & React.HTMLAttributes<HTMLDivElement>) => {
                             return inline ? (
                               <strong
                                 className="text-blue-600 dark:text-blue-400 font-bold not-prose"

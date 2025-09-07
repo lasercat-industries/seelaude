@@ -11,17 +11,17 @@ export const ChatDemo: React.FC = () => {
     sessions: [],
   });
 
-  // const [selectedSession] = useState({
-  //   id: '0388ce60-feac-4f7d-a122-2240e8beab59',
-  //   summary: 'spec approved, please proceed',
-  //   lastActivity: '2025-08-27T20:10:21.222Z',
-  //   messageCount: 259,
-  //   created: '2025-08-27T18:03:26.608Z',
-  // });
+  const [selectedSession] = useState({
+    id: 'cd484e20-66aa-40f0-975b-1e76192da1c3',
+    summary: 'spec approved, please proceed',
+    lastActivity: '2025-08-27T20:10:21.222Z',
+    messageCount: 259,
+    created: '2025-08-27T18:03:26.608Z',
+  });
 
   // const [selectedProject] = useState();
 
-  const [selectedSession] = useState();
+  // const [selectedSession] = useState();
 
   const { ws, sendMessage, messages: wMessages } = useWebSocketContext();
 
