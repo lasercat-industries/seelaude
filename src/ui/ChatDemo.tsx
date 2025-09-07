@@ -10,20 +10,18 @@ export const ChatDemo: React.FC = () => {
     displayName: 'Perlox Demo',
     sessions: [],
   });
-  // const [selectedSession, setSelectedSession] = useState({
-  //   id: 'cd5c1ea3-a0da-45ad-ac12-fa5c51f5e913',
-  //   title:
-  //     '# /setup\n\nCreate the boilerplate infrastructure for claude code in this project\n\n## Rules\n\nNever add...',
-  //   created: '2025-08-27T17:26:08.998Z',
-  //   lastActivity: '2025-08-27T17:30:38.469Z',
+
+  // const [selectedSession] = useState({
+  //   id: '0388ce60-feac-4f7d-a122-2240e8beab59',
+  //   summary: 'spec approved, please proceed',
+  //   lastActivity: '2025-08-27T20:10:21.222Z',
+  //   messageCount: 259,
+  //   created: '2025-08-27T18:03:26.608Z',
   // });
-  const [selectedSession] = useState({
-    id: '0388ce60-feac-4f7d-a122-2240e8beab59',
-    summary: 'spec approved, please proceed',
-    lastActivity: '2025-08-27T20:10:21.222Z',
-    messageCount: 259,
-    created: '2025-08-27T18:03:26.608Z',
-  });
+
+  // const [selectedProject] = useState();
+
+  const [selectedSession] = useState();
 
   const { ws, sendMessage, messages: wMessages } = useWebSocketContext();
 

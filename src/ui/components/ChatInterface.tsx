@@ -18,10 +18,11 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import ClaudeLogo from './ClaudeLogo.js';
-import ClaudeStatus from './ClaudeStatus.js';
-import { api } from '../utils/api.js';
-import { MessageComponent } from './MessageComponent.js';
+import ClaudeLogo from './ClaudeLogo';
+import ClaudeStatus from './ClaudeStatus';
+import { api } from '../utils/api';
+import { safeLocalStorage } from '../utils/safeLocalStorage';
+import { MessageComponent } from './MessageComponent';
 import type {
   ChatInterfaceProps,
   ChatMessage,
@@ -38,89 +39,10 @@ import type {
   StreamingMessageData,
   ToolResultMessage,
   UserMessageWithToolResults,
-} from './cursor-types.js';
+} from './claudeTypes.js';
+import { claudeCodeModels, defaultClaudeModel } from '../utils/claudeModels';
 
 // Safe localStorage utility to handle quota exceeded errors
-const safeLocalStorage = {
-  setItem: (key: string, value: string) => {
-    try {
-      // For chat messages, implement compression and size limits
-      if (key.startsWith('chat_messages_') && typeof value === 'string') {
-        try {
-          const parsed = JSON.parse(value);
-          // Limit to last 50 messages to prevent storage bloat
-          if (Array.isArray(parsed) && parsed.length > 50) {
-            console.warn(`Truncating chat history for ${key} from ${parsed.length} to 50 messages`);
-            const truncated = parsed.slice(-50);
-            value = JSON.stringify(truncated);
-          }
-        } catch (parseError) {
-          console.warn('Could not parse chat messages for truncation:', parseError);
-        }
-      }
-
-      localStorage.setItem(key, value);
-    } catch (error) {
-      if (error instanceof Error && error.name === 'QuotaExceededError') {
-        console.warn('localStorage quota exceeded, clearing old data');
-        // Clear old chat messages to free up space
-        const keys = Object.keys(localStorage);
-        const chatKeys = keys.filter((k) => k.startsWith('chat_messages_')).sort();
-
-        // Remove oldest chat data first, keeping only the 3 most recent projects
-        if (chatKeys.length > 3) {
-          chatKeys.slice(0, chatKeys.length - 3).forEach((k) => {
-            localStorage.removeItem(k);
-            console.log(`Removed old chat data: ${k}`);
-          });
-        }
-
-        // If still failing, clear draft inputs too
-        const draftKeys = keys.filter((k) => k.startsWith('draft_input_'));
-        draftKeys.forEach((k) => {
-          localStorage.removeItem(k);
-        });
-
-        // Try again with reduced data
-        try {
-          localStorage.setItem(key, value);
-        } catch (retryError) {
-          console.error('Failed to save to localStorage even after cleanup:', retryError);
-          // Last resort: Try to save just the last 10 messages
-          if (key.startsWith('chat_messages_') && typeof value === 'string') {
-            try {
-              const parsed = JSON.parse(value);
-              if (Array.isArray(parsed) && parsed.length > 10) {
-                const minimal = parsed.slice(-10);
-                localStorage.setItem(key, JSON.stringify(minimal));
-                console.warn('Saved only last 10 messages due to quota constraints');
-              }
-            } catch (finalError) {
-              console.error('Final save attempt failed:', finalError);
-            }
-          }
-        }
-      } else {
-        console.error('localStorage error:', error);
-      }
-    }
-  },
-  getItem: (key: string) => {
-    try {
-      return localStorage.getItem(key);
-    } catch (error) {
-      console.error('localStorage getItem error:', error);
-      return null;
-    }
-  },
-  removeItem: (key: string) => {
-    try {
-      localStorage.removeItem(key);
-    } catch (error) {
-      console.error('localStorage removeItem error:', error);
-    }
-  },
-};
 
 function formatUsageLimitText(text: string | unknown): string | unknown {
   try {
@@ -304,8 +226,8 @@ function ChatInterface({
   const [provider, setProvider] = useState<string>(() => {
     return localStorage.getItem('selected-provider') || 'claude';
   });
-  const [cursorModel, setCursorModel] = useState<string>(() => {
-    return localStorage.getItem('cursor-model') || 'gpt-5';
+  const [claudeModel, setClaudeModel] = useState<string>(() => {
+    return localStorage.getItem('claude-model') || defaultClaudeModel.alias;
   });
   // When selecting a session from Sidebar, auto-switch provider to match session's origin
   useEffect(() => {
@@ -317,8 +239,14 @@ function ChatInterface({
 
   // Memoized diff calculation to prevent recalculating on every render
   const createDiff = useMemo(() => {
-    const cache = new Map<string, Array<{ type: string; content: string | undefined; lineNum: number }>>();
-    return (oldStr: string, newStr: string): Array<{ type: string; content: string | undefined; lineNum: number }> => {
+    const cache = new Map<
+      string,
+      Array<{ type: string; content: string | undefined; lineNum: number }>
+    >();
+    return (
+      oldStr: string,
+      newStr: string,
+    ): Array<{ type: string; content: string | undefined; lineNum: number }> => {
       const key = `${oldStr.length}-${newStr.length}-${oldStr.slice(0, 50)}`;
       if (cache.has(key)) {
         return cache.get(key)!;
@@ -389,7 +317,10 @@ function ChatInterface({
   );
 
   // Actual diff calculation function
-  const calculateDiff = (oldStr: string, newStr: string): Array<{ type: string; content: string | undefined; lineNum: number }> => {
+  const calculateDiff = (
+    oldStr: string,
+    newStr: string,
+  ): Array<{ type: string; content: string | undefined; lineNum: number }> => {
     const oldLines = oldStr.split('\n');
     const newLines = newStr.split('\n');
 
@@ -733,7 +664,6 @@ function ChatInterface({
           setSessionMessages([]);
         }
         setCurrentSessionId(null);
-        sessionStorage.removeItem('cursorSessionId');
         setMessagesOffset(0);
         setHasMoreMessages(false);
         setTotalMessages(0);
@@ -741,25 +671,20 @@ function ChatInterface({
     };
 
     void loadMessages();
-  }, [
-    selectedSession,
-    selectedProject,
-    scrollToBottom,
-    isSystemSessionChange,
-  ]);
+  }, [selectedSession, selectedProject, scrollToBottom, isSystemSessionChange]);
 
   // Initialize sessionMessages from messages prop when no session is selected (demo mode)
   useEffect(() => {
     if (!selectedSession && messages && messages.length > 0) {
       // Convert WebSocketMessage[] to SessionMessage[] for demo mode
-      const convertedMessages: SessionMessage[] = messages.map(msg => ({
+      const convertedMessages: SessionMessage[] = messages.map((msg) => ({
         sessionId: msg.sessionId || 'demo',
         type: 'assistant' as const,
         message: {
           role: 'assistant',
-          content: typeof msg.data === 'string' ? msg.data : JSON.stringify(msg.data)
+          content: typeof msg.data === 'string' ? msg.data : JSON.stringify(msg.data),
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       }));
       setSessionMessages(convertedMessages);
     }
@@ -834,10 +759,15 @@ function ChatInterface({
         case 'claude-response': {
           // The data can be either a Message directly or a ClaudeResponseData wrapper
           const rawData = latestMessage.data;
-          
+
           // Check if this is a streaming message (has delta or is content_block_stop)
-          if (rawData && typeof rawData === 'object' && 'type' in rawData && 
-              ((rawData as StreamingMessageData).type === 'content_block_delta' || (rawData as StreamingMessageData).type === 'content_block_stop')) {
+          if (
+            rawData &&
+            typeof rawData === 'object' &&
+            'type' in rawData &&
+            ((rawData as StreamingMessageData).type === 'content_block_delta' ||
+              (rawData as StreamingMessageData).type === 'content_block_stop')
+          ) {
             const responseData = rawData as ClaudeResponseData;
             if (responseData.type === 'content_block_delta' && responseData.delta?.text) {
               // Buffer deltas and flush periodically to reduce rerenders
@@ -908,39 +838,49 @@ function ChatInterface({
           // Handle different types of content in the response
           // At this point, rawData should be a Message object
           const typedMessage = rawData as Message;
-          
+
           // Debug log to see what we're processing
           if (typedMessage && typedMessage.type === 'assistant') {
             // console.log('[ChatInterface] Processing assistant message:', typedMessage);
           }
-          
+
           // Handle tool_result messages that come through claude-response
           if (typedMessage && typedMessage.type === 'tool_result') {
             const resultContent = (typedMessage as ToolResultMessage).content?.[0];
-            
+
             if (resultContent?.tool_use_id) {
               // This is a tool result - add it as a separate message
-              setChatMessages(prev => [...prev, {
-                type: 'tool_result' as const,
-                content: resultContent.content || '',
-                isError: resultContent.is_error || false,
-                toolUseId: resultContent.tool_use_id,
-                timestamp: new Date().toISOString(),
-                sessionId: currentSessionId || 'temp',
-              }]);
+              setChatMessages((prev) => [
+                ...prev,
+                {
+                  type: 'tool_result' as const,
+                  content: resultContent.content || '',
+                  isError: resultContent.is_error || false,
+                  toolUseId: resultContent.tool_use_id,
+                  timestamp: new Date().toISOString(),
+                  sessionId: currentSessionId || 'temp',
+                },
+              ]);
             } else if (resultContent?.type === 'text') {
               // This is hook feedback - add as a new message
-              setChatMessages(prev => [...prev, {
-                type: 'hook_feedback' as const,
-                content: resultContent.text || '',
-                timestamp: new Date().toISOString(),
-                sessionId: currentSessionId || 'temp',
-              }]);
+              setChatMessages((prev) => [
+                ...prev,
+                {
+                  type: 'hook_feedback' as const,
+                  content: resultContent.text || '',
+                  timestamp: new Date().toISOString(),
+                  sessionId: currentSessionId || 'temp',
+                },
+              ]);
             }
             break; // Exit early since we handled the tool_result
           }
-          
-          if (typedMessage && 'content' in typedMessage && Array.isArray((typedMessage as AssistantMessage).content)) {
+
+          if (
+            typedMessage &&
+            'content' in typedMessage &&
+            Array.isArray((typedMessage as AssistantMessage).content)
+          ) {
             for (const part of (typedMessage as AssistantMessage).content) {
               if (part.type === 'tool_use') {
                 // Add tool use message
@@ -975,7 +915,12 @@ function ChatInterface({
                 ]);
               }
             }
-          } else if (typedMessage && 'content' in typedMessage && typeof typedMessage.content === 'string' && typedMessage.content.trim()) {
+          } else if (
+            typedMessage &&
+            'content' in typedMessage &&
+            typeof typedMessage.content === 'string' &&
+            typedMessage.content.trim()
+          ) {
             // Normalize usage limit message to local time
             let content = formatUsageLimitText(typedMessage.content);
 
@@ -992,7 +937,12 @@ function ChatInterface({
           }
 
           // Handle tool results from user messages (these come separately)
-          if (typedMessage && 'role' in typedMessage && typedMessage.role === 'user' && Array.isArray((typedMessage as UserMessageWithToolResults).content)) {
+          if (
+            typedMessage &&
+            'role' in typedMessage &&
+            typedMessage.role === 'user' &&
+            Array.isArray((typedMessage as UserMessageWithToolResults).content)
+          ) {
             for (const part of (typedMessage as UserMessageWithToolResults).content) {
               if (part.type === 'tool_result') {
                 // Find the corresponding tool use and update it with the result
@@ -1019,7 +969,13 @@ function ChatInterface({
 
         case 'claude-output':
           {
-            const cleaned = String((latestMessage.data as unknown as { type?: string; delta?: { text: string }; content?: string }) || '');
+            const cleaned = String(
+              (latestMessage.data as unknown as {
+                type?: string;
+                delta?: { text: string };
+                content?: string;
+              }) || '',
+            );
             if (cleaned.trim()) {
               streamBufferRef.current += streamBufferRef.current ? `\n${cleaned}` : cleaned;
               if (!streamTimerRef.current) {
@@ -1055,7 +1011,7 @@ function ChatInterface({
             ...prev,
             {
               type: 'assistant',
-              content: (latestMessage.data as unknown as string),
+              content: latestMessage.data as unknown as string,
               timestamp: new Date().toISOString(),
               isInteractivePrompt: true,
               sessionId: currentSessionId || 'temp',
@@ -1167,7 +1123,6 @@ function ChatInterface({
           }
           break;
         }
-
       }
     }
   }, [messages]);
@@ -1375,11 +1330,11 @@ function ChatInterface({
     });
 
     if (validFiles.length > 0) {
-      const uploadedImages: UploadedImage[] = validFiles.map(file => ({
+      const uploadedImages: UploadedImage[] = validFiles.map((file) => ({
         id: Math.random().toString(36).substr(2, 9),
         url: URL.createObjectURL(file),
         file: file,
-        status: 'uploaded' as const
+        status: 'uploaded' as const,
       }));
       setAttachedImages((prev) => [...prev, ...uploadedImages].slice(0, 5)); // Max 5 images
     }
@@ -1492,8 +1447,7 @@ function ChatInterface({
     setTimeout(() => scrollToBottom(), 100); // Longer delay to ensure message is rendered
 
     // Determine effective session id for replies to avoid race on state updates
-    const effectiveSessionId =
-      currentSessionId || selectedSession?.id || sessionStorage.getItem('cursorSessionId');
+    const effectiveSessionId = selectedSession?.id;
 
     // Session Protection: Mark session as active to prevent automatic project updates during conversation
     // Use existing session if available; otherwise a temporary placeholder until backend provides real ID
@@ -1505,8 +1459,7 @@ function ChatInterface({
     // Get tools settings from localStorage based on provider
     const getToolsSettings = () => {
       try {
-        const settingsKey =
-          provider === 'cursor' ? 'cursor-tools-settings' : 'claude-tools-settings';
+        const settingsKey = 'claude-tools-settings';
         const savedSettings = safeLocalStorage.getItem(settingsKey);
         if (savedSettings) {
           return JSON.parse(savedSettings);
@@ -1783,79 +1736,37 @@ function ChatInterface({
                         </div>
                       )}
                     </button>
-
-                    {/* Cursor Button */}
-                    <button
-                      onClick={() => {
-                        setProvider('cursor');
-                        localStorage.setItem('selected-provider', 'cursor');
-                        // Focus input after selection
-                        setTimeout(() => textareaRef.current?.focus(), 100);
-                      }}
-                      className={`group relative w-64 h-32 bg-white dark:bg-gray-800 rounded-xl border-2 transition-all duration-200 hover:scale-105 hover:shadow-xl ${
-                        provider === 'cursor'
-                          ? 'border-purple-500 shadow-lg ring-2 ring-purple-500/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-purple-400'
-                      }`}
-                    >
-                      <div className="flex flex-col items-center justify-center h-full gap-3">
-                        <ClaudeLogo className="w-full h-full" />
-                        <div>
-                          <p className="font-semibold text-gray-900 dark:text-white">Cursor</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">AI Code Editor</p>
-                        </div>
-                      </div>
-                      {provider === 'cursor' && (
-                        <div className="absolute top-2 right-2">
-                          <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
-                            <svg
-                              className="w-3 h-3 text-white"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={3}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          </div>
-                        </div>
-                      )}
-                    </button>
                   </div>
 
-                  {/* Model Selection for Cursor - Always reserve space to prevent jumping */}
+                  {/* Model Selection Claude - Always reserve space to prevent jumping */}
                   <div
-                    className={`mb-6 transition-opacity duration-200 ${provider === 'cursor' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                    className={`mb-6 transition-opacity duration-200 ${provider === 'claude' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                   >
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      {provider === 'cursor' ? 'Select Model' : '\u00A0'}
+                      {provider === 'claude' ? 'Select Model' : '\u00A0'}
                     </label>
                     <select
-                      value={cursorModel}
+                      value={claudeModel}
                       onChange={(e) => {
                         const newModel = e.target.value;
-                        setCursorModel(newModel);
-                        localStorage.setItem('cursor-model', newModel);
+                        setClaudeModel(newModel);
+                        localStorage.setItem('claude-model', newModel);
                       }}
                       className="pl-4 pr-10 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 min-w-[140px]"
-                      disabled={provider !== 'cursor'}
+                      disabled={provider !== 'claude'}
                     >
-                      <option value="gpt-5">GPT-5</option>
-                      <option value="sonnet-4">Sonnet-4</option>
-                      <option value="opus-4.1">Opus 4.1</option>
+                      {claudeCodeModels.map(({ name, alias }) => (
+                        <option key={alias} value={alias}>
+                          {name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {provider === 'claude'
                       ? 'Ready to use Claude AI. Start typing your message below.'
-                      : provider === 'cursor'
-                        ? `Ready to use Cursor with ${cursorModel}. Start typing your message below.`
-                        : 'Select a provider above to begin'}
+                      : 'Select a provider above to begin'}
                   </p>
                 </div>
               )}
@@ -1934,16 +1845,10 @@ function ChatInterface({
               <div className="w-full">
                 <div className="flex items-center space-x-3 mb-2">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0 p-1 bg-transparent">
-                    {(localStorage.getItem('selected-provider') || 'claude') === 'cursor' ? (
-                      <ClaudeLogo className="w-full h-full" />
-                    ) : (
-                      <ClaudeLogo className="w-full h-full" />
-                    )}
+                    <ClaudeLogo className="w-full h-full" />
                   </div>
                   <div className="text-sm font-medium text-gray-900 dark:text-white">
-                    {(localStorage.getItem('selected-provider') || 'claude') === 'cursor'
-                      ? 'Cursor'
-                      : 'Claude'}
+                    'Claude'
                   </div>
                   {/* Abort button removed - functionality not yet implemented at backend */}
                 </div>
