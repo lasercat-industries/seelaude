@@ -10,7 +10,12 @@
  * for the chess-helper project.
  */
 
-import { getSessionTreesJSON, getLatestSessions, extractSessionData } from './sessions';
+import {
+  getSessionTreesJSON,
+  getLatestSessions,
+  extractSessionData,
+  getLatestDescendant,
+} from './sessions';
 import type { SessionNode } from '@shared/claude/types';
 import * as path from 'path';
 import * as fs from 'fs/promises';
@@ -214,6 +219,88 @@ async function testSessions(): Promise<void> {
               `  ${colors.dim}First message preview: "${firstMsg.text.substring(0, 50)}..."${colors.reset}`,
             );
           }
+        }
+      }
+    }
+
+    // Test 4: Test getLatestDescendant
+    console.log(`\n${colors.yellow}▶ Test 4: Testing getLatestDescendant...${colors.reset}`);
+
+    // Find a session that has descendants (branches)
+    let testSessionId: string | null = null;
+    let projectName = path.basename(directory);
+
+    for (const tree of result.trees) {
+      // Look for a tree with branches (has descendants)
+      if (tree.totalBranches > 0) {
+        testSessionId = tree.rootId;
+        break;
+      }
+    }
+
+    if (testSessionId) {
+      console.log(`  ${colors.dim}Testing with session ID: ${testSessionId}${colors.reset}`);
+
+      // Get the latest descendant
+      const latestDescendantId = await getLatestDescendant(
+        projectName,
+        testSessionId,
+        path.dirname(directory),
+      );
+
+      console.log(`  ${colors.green}✓ Latest descendant: ${latestDescendantId}${colors.reset}`);
+
+      // Verify it's different from the root (if there are descendants)
+      if (latestDescendantId !== testSessionId) {
+        console.log(
+          `  ${colors.dim}Found a descendant different from the root session${colors.reset}`,
+        );
+      } else {
+        console.log(
+          `  ${colors.dim}No descendants found or input session is the latest${colors.reset}`,
+        );
+      }
+
+      // Test with a leaf node (should return itself)
+      const leafSessions = latestSessions.filter((s) => !s.isFork || s.messageCount > 0);
+      if (leafSessions.length > 0 && leafSessions[0]) {
+        const leafId = leafSessions[0].sessionId;
+        console.log(`\n  ${colors.dim}Testing with leaf session ID: ${leafId}${colors.reset}`);
+
+        const leafDescendant = await getLatestDescendant(
+          projectName,
+          leafId,
+          path.dirname(directory),
+        );
+
+        if (leafDescendant === leafId) {
+          console.log(`  ${colors.green}✓ Leaf node correctly returns itself${colors.reset}`);
+        } else {
+          console.log(
+            `  ${colors.yellow}⚠ Unexpected: Leaf node returned different ID${colors.reset}`,
+          );
+        }
+      }
+    } else {
+      console.log(
+        `  ${colors.yellow}⚠ No sessions with branches found to test getLatestDescendant${colors.reset}`,
+      );
+
+      // Test with any available session (should return itself if no descendants)
+      if (result.trees.length > 0 && result.trees[0]) {
+        const anySessionId = result.trees[0].rootId;
+        console.log(`  ${colors.dim}Testing with session ID: ${anySessionId}${colors.reset}`);
+
+        const descendantId = await getLatestDescendant(
+          projectName,
+          anySessionId,
+          path.dirname(directory),
+        );
+
+        if (descendantId === anySessionId) {
+          console.log(
+            `  ${colors.green}✓ Session with no descendants correctly returns itself${colors.reset}`,
+          );
         }
       }
     }

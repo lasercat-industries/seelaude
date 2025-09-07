@@ -491,3 +491,72 @@ export async function getSessionMessages(
 
   return messages;
 }
+
+/**
+ * Get the latest descendant session ID for a given session in a project.
+ * If the session has no descendants, returns the input session ID.
+ *
+ * @param projectName - The encoded project name (e.g., "-Users-username-repos-project")
+ * @param sessionId - The UUID of the session to find descendants for
+ * @param baseDir - Optional base directory (defaults to ~/.claude/projects)
+ * @returns The session ID of the most recently updated descendant (or the input sessionId if no descendants)
+ */
+export async function getLatestDescendant(
+  projectName: string,
+  sessionId: string,
+  baseDir?: string,
+): Promise<string> {
+  const projectDir = baseDir
+    ? path.join(baseDir, projectName)
+    : path.join(os.homedir(), '.claude', 'projects', projectName);
+
+  // Get the session tree for this project
+  const treesResult = await getSessionTreesJSON(projectDir);
+
+  // Find all descendants of the given session ID
+  const descendants: { sessionId: string; lastModified: Date }[] = [];
+
+  // Helper function to recursively find descendants
+  function findDescendants(node: SessionNode, isDescendant: boolean = false) {
+    // If this node matches our session ID, mark all children as descendants
+    if (node.sessionId === sessionId) {
+      isDescendant = false; // Don't include the node itself
+      // Process its branches as descendants
+      for (const child of node.branches) {
+        findDescendants(child, true);
+      }
+    } else if (isDescendant) {
+      // This is a descendant - add it to our list
+      descendants.push({
+        sessionId: node.sessionId,
+        lastModified: new Date(node.modified),
+      });
+      // Continue checking its branches
+      for (const child of node.branches) {
+        findDescendants(child, true);
+      }
+    } else {
+      // Keep searching for the target session
+      for (const child of node.branches) {
+        findDescendants(child, false);
+      }
+    }
+  }
+
+  // Search through all trees
+  for (const tree of treesResult.trees) {
+    findDescendants(tree.structure);
+  }
+
+  // If no descendants found, return the original session ID
+  if (descendants.length === 0) {
+    return sessionId;
+  }
+
+  // Find the most recently modified descendant
+  const latestDescendant = descendants.reduce((latest, current) => {
+    return current.lastModified > latest.lastModified ? current : latest;
+  });
+
+  return latestDescendant.sessionId;
+}

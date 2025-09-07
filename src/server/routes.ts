@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { getSessionMessages } from './claude/sessions';
+import { getSessionMessages, getLatestDescendant } from './claude/sessions';
 import { getProjects, getSessions } from './claude/projects';
 import { upgradeWebSocket } from 'hono/bun';
 import { spawnClaude, abortClaudeSession } from './claude/spawnClaude';
@@ -178,6 +178,24 @@ export const api = new Hono()
           messages: [],
           hasMore: false,
           total: 0,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+        500,
+      );
+    }
+  })
+  .get('/projects/:projectName/sessions/:sessionId/latestDescendant', async (c) => {
+    const projectName = c.req.param('projectName');
+    const sessionId = c.req.param('sessionId');
+
+    try {
+      const latestDescendant = await getLatestDescendant(projectName, sessionId);
+      return c.json(latestDescendant);
+    } catch (error) {
+      console.error('Error fetching latest descendant:', error);
+      return c.json(
+        {
+          message: 'Failed to fetch latest descendant',
           error: error instanceof Error ? error.message : 'Unknown error',
         },
         500,
