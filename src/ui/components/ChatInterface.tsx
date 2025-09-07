@@ -159,6 +159,7 @@ function ChatInterface({
   // Streaming throttle buffers
   const streamBufferRef = useRef<string>('');
   const streamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastProcessedIndexRef = useRef<number>(0);
   const [showFileDropdown, setShowFileDropdown] = useState<boolean>(false);
   const [fileList, setFileList] = useState<FileTreeNode[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<FileTreeNode[]>([]);
@@ -688,16 +689,16 @@ function ChatInterface({
   }, [selectedProject?.name]);
 
   useEffect(() => {
-    // Handle WebSocket messages
-    if (messages.length > 0) {
-      const latestMessage = messages[messages.length - 1];
-      if (!latestMessage) return;
+    // Handle WebSocket messages - process all unprocessed messages
+    const messagesToProcess = messages.slice(lastProcessedIndexRef.current);
 
+    for (const latestMessage of messagesToProcess) {
+      if (!latestMessage) continue;
       switch (latestMessage.type) {
         case 'session-created':
           // New session created by Claude CLI - we receive the real session ID here
           // Store it temporarily until conversation completes (prevents premature session association)
-          if (latestMessage.sessionId && !currentSessionId) {
+          if (latestMessage.sessionId && latestMessage.sessionId !== currentSessionId) {
             sessionStorage.setItem('pendingSessionId', latestMessage.sessionId);
 
             // Session Protection: Replace temporary "new-session-*" identifier with real session ID
@@ -714,8 +715,14 @@ function ChatInterface({
           const rawData = latestMessage.data;
 
           // If we don't have a session ID yet and the message contains one, set it
-          if (!currentSessionId && rawData && typeof rawData === 'object' && 'session_id' in rawData && rawData.session_id) {
-            console.log(`setting session id to ${rawData.session_id}`)
+          if (
+            !currentSessionId &&
+            rawData &&
+            typeof rawData === 'object' &&
+            'session_id' in rawData &&
+            rawData.session_id
+          ) {
+            console.log(`setting session id to ${rawData.session_id}`);
             setCurrentSessionId(rawData.session_id as string);
           }
 
@@ -1005,7 +1012,8 @@ function ChatInterface({
 
           // If we have a pending session ID and the conversation completed successfully, use it
           const pendingSessionId = sessionStorage.getItem('pendingSessionId');
-          if (pendingSessionId && !currentSessionId && latestMessage.exitCode === 0) {
+          if (pendingSessionId && latestMessage.exitCode === 0) {
+            console.log(`updating sessionId with ${pendingSessionId}`);
             setCurrentSessionId(pendingSessionId);
             sessionStorage.removeItem('pendingSessionId');
 
@@ -1084,6 +1092,9 @@ function ChatInterface({
         }
       }
     }
+
+    // Update the ref to mark these messages as processed
+    lastProcessedIndexRef.current = messages.length;
   }, [messages]);
 
   // Load file list when project changes
@@ -1406,7 +1417,7 @@ function ChatInterface({
     setTimeout(() => scrollToBottom(), 100); // Longer delay to ensure message is rendered
 
     // Determine effective session id for replies to avoid race on state updates
-    const effectiveSessionId = selectedSession?.id;
+    const effectiveSessionId = currentSessionId;
 
     // Session Protection: Mark session as active to prevent automatic project updates during conversation
     // Use existing session if available; otherwise a temporary placeholder until backend provides real ID
@@ -1805,9 +1816,7 @@ function ChatInterface({
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0 p-1 bg-transparent">
                     <ClaudeLogo className="w-full h-full" />
                   </div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                    'Claude'
-                  </div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">'Claude'</div>
                   {/* Abort button removed - functionality not yet implemented at backend */}
                 </div>
                 <div className="w-full text-sm text-gray-500 dark:text-gray-400 pl-3 sm:pl-0">
