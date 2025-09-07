@@ -31,7 +31,7 @@ import type {
   ImageAttachmentProps,
 } from './types.js';
 import type { SessionMessage } from '@shared/claude/types';
-import type { Message, AssistantMessage } from '@instantlyeasy/claude-code-sdk-ts';
+import type { Message, AssistantMessage } from '@lasercat/claude-code-sdk-ts';
 import type {
   ClaudeResponseData,
   ClaudeStatusData,

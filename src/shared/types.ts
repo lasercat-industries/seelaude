@@ -1,4 +1,4 @@
-import type { Message, CLIOutput } from '@instantlyeasy/claude-code-sdk-ts';
+import type { Message, CLIOutput } from '@lasercat/claude-code-sdk-ts';
 import type { ClaudeCommandMessage } from './claude/types';
 
 export interface WebSocket {

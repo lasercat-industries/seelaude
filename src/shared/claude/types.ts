@@ -1,4 +1,4 @@
-import type { ToolName, PermissionMode } from '@instantlyeasy/claude-code-sdk-ts';
+import type { ToolName, PermissionMode } from '@lasercat/claude-code-sdk-ts';
 /**
  * Shared type definitions for Claude API data structures
  * These types are used across multiple modules that parse Claude's JSONL files

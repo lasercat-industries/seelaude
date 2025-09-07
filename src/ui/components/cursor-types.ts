@@ -2,7 +2,7 @@
  * Type definitions for Cursor-specific data structures
  */
 
-import type { Message, CLIOutput } from '@instantlyeasy/claude-code-sdk-ts';
+import type { Message, CLIOutput } from '@lasercat/claude-code-sdk-ts';
 
 /**
  * Cursor message blob structure from SQLite

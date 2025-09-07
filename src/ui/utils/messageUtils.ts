@@ -1,6 +1,6 @@
 import type { SessionMessage, ContentItem } from '@shared/claude/types';
 import { isContentItemArray, extractTextFromContentItem } from '@shared/claude/types';
-import type { ToolUseBlock, ToolResultBlock } from '@instantlyeasy/claude-code-sdk-ts';
+import type { ToolUseBlock, ToolResultBlock } from '@lasercat/claude-code-sdk-ts';
 
 /**
  * Convert session messages for display in the chat interface
