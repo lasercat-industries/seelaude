@@ -2,6 +2,5 @@ import WebSocketContext,  { WebSocketProvider, useWebSocketContext } from '../co
 import ChatInterface  from './ChatInterface';
 export * from './Button';
 export * from './ErrorBoundary';
-export * from './TestComponent';
 export * from './types';
 export { WebSocketContext, WebSocketProvider, ChatInterface, useWebSocketContext };

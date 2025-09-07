@@ -20,6 +20,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone';
 import ClaudeLogo from './ClaudeLogo';
 import ClaudeStatus from './ClaudeStatus';
+import ImageAttachment from './ImageAttachment';
 import { api } from '../utils/api';
 import { safeLocalStorage } from '../utils/safeLocalStorage';
 import { MessageComponent } from './MessageComponent';
@@ -29,7 +30,6 @@ import type {
   UploadedImage,
   FileTreeNode,
   ClaudeStatus as ClaudeStatusType,
-  ImageAttachmentProps,
 } from './types.js';
 import type { SessionMessage } from '@shared/claude/types';
 import type { Message, AssistantMessage } from '@lasercat/claude-code-sdk-ts';
@@ -98,53 +98,6 @@ function formatUsageLimitText(text: string | unknown): string | unknown {
     return text;
   }
 }
-
-// ImageAttachment component for displaying image previews
-const ImageAttachment = ({ file, onRemove, uploadProgress, error }: ImageAttachmentProps) => {
-  const [preview, setPreview] = useState<string | null>(null);
-
-  useEffect(() => {
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
-
-  return (
-    <div className="relative group">
-      <img src={preview || undefined} alt={file.name} className="w-20 h-20 object-cover rounded" />
-      {uploadProgress !== undefined && uploadProgress < 100 && (
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-          <div className="text-white text-xs">{uploadProgress}%</div>
-        </div>
-      )}
-      {error && (
-        <div className="absolute inset-0 bg-red-500/50 flex items-center justify-center">
-          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </div>
-      )}
-      <button
-        onClick={onRemove}
-        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100"
-      >
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
-      </button>
-    </div>
-  );
-};
 
 // ChatInterface: Main chat component with Session Protection System integration
 //
@@ -626,7 +579,7 @@ function ChatInterface({
     // Load session messages when session changes
     const loadMessages = async () => {
       if (selectedSession && selectedProject) {
-        const provider = localStorage.getItem('selected-provider') || 'claude';
+        const provider = 'claude';
 
         // Reset pagination state when switching sessions
         setMessagesOffset(0);
@@ -673,22 +626,22 @@ function ChatInterface({
     void loadMessages();
   }, [selectedSession, selectedProject, scrollToBottom, isSystemSessionChange]);
 
-  // Initialize sessionMessages from messages prop when no session is selected (demo mode)
-  useEffect(() => {
-    if (!selectedSession && messages && messages.length > 0) {
-      // Convert WebSocketMessage[] to SessionMessage[] for demo mode
-      const convertedMessages: SessionMessage[] = messages.map((msg) => ({
-        sessionId: msg.sessionId || 'demo',
-        type: 'assistant' as const,
-        message: {
-          role: 'assistant',
-          content: typeof msg.data === 'string' ? msg.data : JSON.stringify(msg.data),
-        },
-        timestamp: new Date().toISOString(),
-      }));
-      setSessionMessages(convertedMessages);
-    }
-  }, [messages, selectedSession]);
+  // // Initialize sessionMessages from messages prop when no session is selected (demo mode)
+  // useEffect(() => {
+  //   if (!selectedSession && messages && messages.length > 0) {
+  //     // Convert WebSocketMessage[] to SessionMessage[] for demo mode
+  //     const convertedMessages: SessionMessage[] = messages.map((msg) => ({
+  //       sessionId: msg.sessionId || 'demo',
+  //       type: 'assistant' as const,
+  //       message: {
+  //         role: 'assistant',
+  //         content: typeof msg.data === 'string' ? msg.data : JSON.stringify(msg.data),
+  //       },
+  //       timestamp: new Date().toISOString(),
+  //     }));
+  //     setSessionMessages(convertedMessages);
+  //   }
+  // }, [messages, selectedSession]);
 
   // Update chatMessages when convertedMessages changes
   useEffect(() => {
@@ -759,6 +712,12 @@ function ChatInterface({
         case 'claude-response': {
           // The data can be either a Message directly or a ClaudeResponseData wrapper
           const rawData = latestMessage.data;
+
+          // If we don't have a session ID yet and the message contains one, set it
+          if (!currentSessionId && rawData && typeof rawData === 'object' && 'session_id' in rawData && rawData.session_id) {
+            console.log(`setting session id to ${rawData.session_id}`)
+            setCurrentSessionId(rawData.session_id as string);
+          }
 
           // Check if this is a streaming message (has delta or is content_block_stop)
           if (
@@ -1821,7 +1780,6 @@ function ChatInterface({
                 const prevMessage = index > 0 ? visibleMessages[index - 1] : undefined;
 
                 const nextMessage = visibleMessages[index + 1];
-                // console.log(message);
 
                 return (
                   <MessageComponent

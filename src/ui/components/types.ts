@@ -101,16 +101,6 @@ export interface ClaudeStatus {
 }
 
 /**
- * Image attachment component props
- */
-export interface ImageAttachmentProps {
-  file: File;
-  onRemove: () => void;
-  uploadProgress?: number;
-  error?: string;
-}
-
-/**
  * API response types
  */
 export interface SessionMessagesResponse {
