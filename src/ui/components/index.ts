@@ -1,7 +1,7 @@
 import WebSocketContext,  { WebSocketProvider } from '../contexts/WebSocketContext';
+import ChatInterface  from './ChatInterface';
 export * from './Button';
 export * from './ErrorBoundary';
 export * from './TestComponent';
-export * from './ChatInterface';
 export * from './types';
-export { WebSocketContext, WebSocketProvider };
+export { WebSocketContext, WebSocketProvider, ChatInterface };
