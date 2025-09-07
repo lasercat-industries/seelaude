@@ -1,5 +1,5 @@
-import { claude } from '@instantlyeasy/claude-code-sdk-ts';
-import type { Message } from '@instantlyeasy/claude-code-sdk-ts';
+import { claude } from '@lasercat/claude-code-sdk-ts';
+import type { Message } from '@lasercat/claude-code-sdk-ts';
 import type { WebSocket, WebSocketMessage } from '@shared/types';
 import type { SpawnClaudeOptions } from '@shared/claude/types';
 import { promises as fs } from 'fs';
