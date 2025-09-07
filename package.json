@@ -1,6 +1,6 @@
 {
   "name": "@lasercat/seelaude",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A template for react-typescript components",
   "author": "Ryland Goldstein",
   "license": "MIT",
@@ -55,7 +55,7 @@
     "build:analyze": "bun run build && bunx source-map-explorer dist/*.js",
     "build:check": "bun run build && bunx publint && bunx attw --pack",
     "build:size": "bun run build && bunx size-limit",
-    "build:validate": "bun -e 'import(\"./dist/ui/index.js\").then(import(\"./dist/server/index.js\").then(() => console.log(\"✅ ESM import works\")))'",
+    "build:validate": "bun run scripts/validate-build.ts",
     "clean": "bun run scripts/clean.ts",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path ./node_modules/@lasercat/config/.prettierignore",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path ./node_modules/@lasercat/config/.prettierignore",
