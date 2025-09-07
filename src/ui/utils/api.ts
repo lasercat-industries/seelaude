@@ -22,6 +22,9 @@ export const api = {
   getFiles: async (projectName: string) => {
     return fetch(`/api/projects/${projectName}/files`);
   },
+  getLatestDescendant: async (projectName: string, sessionId: string) => {
+    return fetch(`/api/projects/${projectName}/sessions/${sessionId}/latestDescendant`);
+  },
 };
 
 export const authenticatedFetch = (url: string, options?: RequestInit) => {
