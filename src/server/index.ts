@@ -1,2 +1,2 @@
-export { api } from './routes';
+export { api, ws } from './routes';
 export * from './claude';
