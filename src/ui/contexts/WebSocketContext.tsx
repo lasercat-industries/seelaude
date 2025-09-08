@@ -22,8 +22,11 @@ export const useWebSocketContext = () => {
   return context;
 };
 
-export const WebSocketProvider: FC<{ children?: ReactNode }> = ({ children }) => {
-  const webSocketData = useWebSocket();
+export const WebSocketProvider: FC<{ children?: ReactNode; token?: string }> = ({
+  children,
+  token,
+}) => {
+  const webSocketData = useWebSocket(token);
 
   return <WebSocketContext.Provider value={webSocketData}>{children}</WebSocketContext.Provider>;
 };
