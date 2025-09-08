@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { WebSocket, WebSocketMessage, OutgoingMessage } from '@shared/types';
 
-export function useWebSocket() {
+export function useWebSocket(token?: string) {
   const [ws, setWs] = useState<WebSocket>();
   const [messages, setMessages] = useState<WebSocketMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -50,7 +50,10 @@ export function useWebSocket() {
       }
 
       // Include token in WebSocket URL as query parameter
-      const wsUrl = `${wsBaseUrl}/ws`;
+      let wsUrl = `${wsBaseUrl}/ws`;
+      if (token) {
+        wsUrl += `?token=${encodeURIComponent(token)}`;
+      }
       const websocket = new WebSocket(wsUrl);
 
       websocket.onopen = () => {
