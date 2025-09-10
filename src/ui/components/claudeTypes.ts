@@ -2,7 +2,7 @@
  * Type definitions for Cursor-specific data structures
  */
 
-import type { Message, CLIOutput } from '@lasercat/claude-code-sdk-ts';
+import type { Message } from '@shared/claude/types';
 
 /**
  * Claude response data in WebSocket messages
@@ -67,8 +67,3 @@ export interface ClaudeStatusData {
   tokens?: number;
   token_count?: number;
 }
-
-/**
- * Claude output data type alias
- */
-export type ClaudeOutputData = CLIOutput;

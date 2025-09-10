@@ -1,3 +1,3 @@
 export * from './sessions';
 export * from './projects';
-export * from './spawnClaude';
+export * from './spawnClaudeNew';

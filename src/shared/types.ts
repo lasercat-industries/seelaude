@@ -1,5 +1,9 @@
-import type { Message, CLIOutput } from '@lasercat/claude-code-sdk-ts';
-import type { ClaudeCommandMessage } from './claude/types';
+import type {
+  ClaudeCommandMessage,
+  ClaudePermissionMessage,
+  Message,
+  PermissionPayload,
+} from './claude/types';
 
 export interface WebSocket {
   send: (data: string) => void;
@@ -22,9 +26,11 @@ export interface WebSocketMessage {
     | 'cursor-tool-use'
     | 'cursor-error'
     | 'cursor-result'
-    | 'cursor-output';
+    | 'cursor-output'
+    | 'permission-request';
   sessionId?: string;
-  data?: Message | CLIOutput | unknown;
+  data?: Message | unknown;
+  permissionPayload?: PermissionPayload;
   error?: string;
   exitCode?: number;
   isNewSession?: boolean;
@@ -38,13 +44,4 @@ export type AbortSessionMessage = {
   provider: string;
 };
 
-export type CursorCommandMessage = {
-  type: 'cursor-command';
-  command: string;
-  projectPath?: string;
-  sessionId?: string | null;
-  permissionMode?: string;
-  model?: string;
-};
-
-export type OutgoingMessage = ClaudeCommandMessage | AbortSessionMessage | CursorCommandMessage;
+export type OutgoingMessage = ClaudeCommandMessage | AbortSessionMessage | ClaudePermissionMessage;

@@ -2,7 +2,12 @@
  * Type definitions for ChatInterfaceNew component
  */
 
-import type { ClaudeProject, ClaudeSession, SessionMessage } from '@shared/claude/types';
+import type {
+  ClaudeProject,
+  ClaudeSession,
+  PermissionPayload,
+  SessionMessage,
+} from '@shared/claude/types';
 import type { WebSocketMessage, OutgoingMessage, WebSocket } from '@shared/types';
 
 export interface DiffInfo {
@@ -49,7 +54,15 @@ export interface ExtendedMessage extends Omit<SessionMessage, 'type'> {
  * Chat message type extending ExtendedMessage
  */
 export type ChatMessage = ExtendedMessage & {
-  type: 'user' | 'assistant' | 'system' | 'tool' | 'tool_result' | 'hook_feedback' | 'error';
+  type:
+    | 'user'
+    | 'assistant'
+    | 'system'
+    | 'tool'
+    | 'tool_result'
+    | 'hook_feedback'
+    | 'error'
+    | 'permission_request';
   id?: string;
   isStreaming?: boolean;
   files?: AttachedFile[];
@@ -58,6 +71,7 @@ export type ChatMessage = ExtendedMessage & {
   images?: string[];
   content: string;
   isError?: boolean;
+  permissionPayload?: PermissionPayload;
 };
 
 /**

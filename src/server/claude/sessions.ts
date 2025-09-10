@@ -11,7 +11,7 @@ import * as readline from 'readline';
 import { createReadStream, statSync } from 'fs';
 import * as os from 'os';
 import type {
-  Message,
+  SimpleSessionMessage,
   SessionData,
   SessionNode,
   BranchEndpoint,
@@ -29,7 +29,7 @@ import { isContentItemArray } from '@shared/claude/types';
  * Extract all message UUIDs and content from a session file
  */
 export async function extractSessionData(filepath: string): Promise<SessionData> {
-  const messages: Message[] = [];
+  const messages: SimpleSessionMessage[] = [];
   const uuids = new Set<string>();
   let sessionId: string | null = null;
   let firstUserMessageUuid: string | null = null;

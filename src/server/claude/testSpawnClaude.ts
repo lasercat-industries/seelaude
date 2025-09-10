@@ -8,7 +8,7 @@
  */
 
 import type { WebSocketMessage } from '@shared/types';
-import { spawnClaude, createStreamWrapper } from './spawnClaude';
+import { spawnClaude, createStreamWrapper } from './spawnClaudeNew';
 import { Duplex } from 'stream';
 
 // ANSI color codes for console output
@@ -153,9 +153,8 @@ async function testSessionResumption(): Promise<void> {
     const promise2 = spawnClaude(
       'What number did I ask you to remember?',
       {
-        sessionId,
         cwd: process.cwd(),
-        resume: true,
+        resume: sessionId,
       },
       stream2,
     );
@@ -192,10 +191,8 @@ async function testToolSettings(): Promise<void> {
       'List files in current directory',
       {
         cwd: process.cwd(),
-        toolsSettings: {
-          allowedTools: ['Bash', 'Read'],
-          skipPermissions: true,
-        },
+        allowedTools: ['Bash', 'Read'],
+        permissionMode: 'bypassPermissions',
       },
       stream,
     );

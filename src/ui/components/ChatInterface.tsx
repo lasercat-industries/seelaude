@@ -31,8 +31,7 @@ import type {
   FileTreeNode,
   ClaudeStatus as ClaudeStatusType,
 } from './types.js';
-import type { SessionMessage } from '@shared/claude/types';
-import type { Message, AssistantMessage } from '@lasercat/claude-code-sdk-ts';
+import type { SessionMessage, Message, AssistantMessage } from '@shared/claude/types';
 import type {
   ClaudeResponseData,
   ClaudeStatusData,
@@ -41,6 +40,7 @@ import type {
   UserMessageWithToolResults,
 } from './claudeTypes.js';
 import { claudeCodeModels, defaultClaudeModel } from '../utils/claudeModels';
+import type { PermissionMode } from '@anthropic-ai/claude-code';
 
 // Safe localStorage utility to handle quota exceeded errors
 
@@ -149,7 +149,7 @@ function ChatInterface({
   const [totalMessages, setTotalMessages] = useState<number>(0);
   const MESSAGES_PER_PAGE = 20;
   const [isSystemSessionChange, setIsSystemSessionChange] = useState<boolean>(false);
-  const [permissionMode, setPermissionMode] = useState<string>('default');
+  const [permissionMode, setPermissionMode] = useState<PermissionMode>('default');
   const [attachedImages, setAttachedImages] = useState<UploadedImage[]>([]);
   const [uploadingImages, setUploadingImages] = useState<Map<string, number>>(new Map());
   const [imageErrors, setImageErrors] = useState<Map<string, string>>(new Map());
@@ -692,7 +692,7 @@ function ChatInterface({
     // Handle WebSocket messages - process all unprocessed messages
     const messagesToProcess = messages.slice(lastProcessedIndexRef.current);
 
-    for (const latestMessage of messagesToProcess) {
+    for (const [index, latestMessage] of messagesToProcess.entries()) {
       if (!latestMessage) continue;
       switch (latestMessage.type) {
         case 'session-created':
@@ -709,7 +709,44 @@ function ChatInterface({
             }
           }
           break;
+        case 'permission-request': {
+          const currentIndex = messages.indexOf(latestMessage);
+          const isActuallyLatest = currentIndex === messages.length - 1;
 
+          if (!isActuallyLatest) {
+            console.log(
+              `Skipping stale permission request - ${messages.length - currentIndex - 1} newer messages exist`,
+            );
+            continue;
+          }
+          if (!latestMessage.permissionPayload) {
+            console.error('No permission payload found for permission request');
+            continue;
+          }
+
+          if (!currentSessionId) {
+            console.error('No current session ID found for permission request');
+            continue;
+          }
+          const payload = latestMessage.permissionPayload;
+
+          console.log(`Permission request for tool ${payload.toolName}`);
+          console.log('Full payload');
+          console.log(JSON.stringify(payload.input, null, 2));
+
+          // Create a permission request message for the UI
+          const permissionMessage: ChatMessage = {
+            id: index.toString(),
+            type: 'permission_request',
+            timestamp: new Date().toISOString(),
+            content: '',
+            permissionPayload: payload,
+            sessionId: currentSessionId,
+          };
+
+          setChatMessages((prev) => [...prev, permissionMessage]);
+          continue;
+        }
         case 'claude-response': {
           // The data can be either a Message directly or a ClaudeResponseData wrapper
           const rawData = latestMessage.data;
@@ -1445,7 +1482,16 @@ function ChatInterface({
     };
 
     const toolsSettings = getToolsSettings();
-
+    // const {
+    //   resume,
+    //   cwd,
+    //   allowedTools,
+    //   disallowedTools,
+    //   permissionMode,
+    //   model,
+    //   executable,
+    //   additionalDirectories,
+    // } = options;
     // Send command based on provider
     if (provider === 'claude') {
       // Send Claude command (existing code)
@@ -1453,13 +1499,12 @@ function ChatInterface({
         type: 'claude-command',
         command: input,
         options: {
-          projectPath: selectedProject.path,
           cwd: selectedProject.fullPath,
-          sessionId: currentSessionId || undefined,
-          resume: !!currentSessionId,
-          toolsSettings: toolsSettings,
-          permissionMode: permissionMode as 'default' | 'acceptEdits' | 'bypassPermissions',
-          images: uploadedImages, // Pass images to backend
+          resume: currentSessionId || undefined,
+          allowedTools: toolsSettings?.allowedTools,
+          disallowedTools: toolsSettings?.disallowedTools,
+          permissionMode: permissionMode,
+          executable: 'bun',
         },
       });
     }
@@ -1514,7 +1559,7 @@ function ChatInterface({
     // Handle Tab key for mode switching (only when file dropdown is not showing)
     if (e.key === 'Tab' && !showFileDropdown) {
       e.preventDefault();
-      const modes = ['default', 'acceptEdits', 'bypassPermissions', 'plan'];
+      const modes: PermissionMode[] = ['default', 'acceptEdits', 'bypassPermissions', 'plan'];
       const currentIndex = modes.indexOf(permissionMode);
       const nextIndex = (currentIndex + 1) % modes.length;
       setPermissionMode(modes[nextIndex] || 'default');
@@ -1614,7 +1659,7 @@ function ChatInterface({
   };
 
   const handleModeSwitch = () => {
-    const modes = ['default', 'acceptEdits', 'bypassPermissions', 'plan'];
+    const modes: PermissionMode[] = ['default', 'acceptEdits', 'bypassPermissions', 'plan'];
     const currentIndex = modes.indexOf(permissionMode);
     const nextIndex = (currentIndex + 1) % modes.length;
     setPermissionMode(modes[nextIndex] || 'default');
@@ -1787,25 +1832,49 @@ function ChatInterface({
                 </div>
               )}
 
-              {visibleMessages.map((message, index) => {
-                const prevMessage = index > 0 ? visibleMessages[index - 1] : undefined;
+              {(() => {
+                // Track seen IDs to handle duplicates from Claude JSONL files
+                const seenIds = new Map<string, number>();
 
-                const nextMessage = visibleMessages[index + 1];
+                return visibleMessages.map((message, index) => {
+                  // Generate a unique key even if message.id is duplicated
+                  let uniqueKey: string;
+                  if (message.id) {
+                    const seenCount = seenIds.get(message.id) || 0;
+                    seenIds.set(message.id, seenCount + 1);
+                    uniqueKey = seenCount === 0 ? message.id : `${message.id}-dup-${seenCount}`;
+                  } else {
+                    uniqueKey = `msg-${index}`;
+                  }
 
-                return (
-                  <MessageComponent
-                    key={index}
-                    message={message}
-                    prevMessage={prevMessage}
-                    nextMessage={nextMessage}
-                    createDiff={createDiff}
-                    onFileOpen={onFileOpen}
-                    onShowSettings={onShowSettings}
-                    autoExpandTools={autoExpandTools}
-                    showRawParameters={showRawParameters}
-                  />
-                );
-              })}
+                  const prevMessage = index > 0 ? visibleMessages[index - 1] : undefined;
+
+                  // Skip permission messages when looking for next message for tool consolidation
+                  let nextMessage = undefined;
+                  for (let i = index + 1; i < visibleMessages.length; i++) {
+                    if (visibleMessages[i]?.type !== 'permission_request') {
+                      nextMessage = visibleMessages[i];
+                      break;
+                    }
+                  }
+
+                  return (
+                    <MessageComponent
+                      key={uniqueKey}
+                      message={message}
+                      prevMessage={prevMessage}
+                      nextMessage={nextMessage}
+                      createDiff={createDiff}
+                      onFileOpen={onFileOpen}
+                      onShowSettings={onShowSettings}
+                      autoExpandTools={autoExpandTools}
+                      showRawParameters={showRawParameters}
+                      currentSessionId={currentSessionId || 'temp'}
+                      sendMessage={sendMessage}
+                    />
+                  );
+                });
+              })()}
             </>
           )}
 

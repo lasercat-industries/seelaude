@@ -3,6 +3,8 @@ import ReactMarkdown from 'react-markdown';
 import type { ChatMessage, DiffInfo } from './types';
 import ClaudeLogo from './ClaudeLogo.jsx';
 import TodoList from './TodoList';
+import { PermissionRequestMessage } from './PermissionRequestMessage';
+import type { OutgoingMessage } from '@shared/types';
 
 // Format "Claude AI usage limit reached|<epoch>" into a local time string
 function formatUsageLimitText(text: string | unknown): string {
@@ -80,6 +82,8 @@ export interface MessageComponentProps {
   onShowSettings: () => void;
   autoExpandTools: boolean;
   showRawParameters: boolean;
+  currentSessionId: string;
+  sendMessage: (message: OutgoingMessage) => void;
 }
 
 // Memoized message component to prevent unnecessary re-renders
@@ -93,6 +97,8 @@ export const MessageComponent = memo<MessageComponentProps>(
     onShowSettings,
     autoExpandTools,
     showRawParameters,
+    currentSessionId,
+    sendMessage,
   }) => {
     // Group consecutive messages from Claude (assistant, tool uses, tool results, hook feedback)
     const isClaudeMessage = (msg: ChatMessage) =>
@@ -194,6 +200,23 @@ export const MessageComponent = memo<MessageComponentProps>(
               </details>
             </div>
           </div>
+        ) : message.type === 'permission_request' &&
+          message?.permissionPayload?.requestId &&
+          message.id ? (
+          <PermissionRequestMessage
+            id={message.id}
+            key={message.id}
+            payload={message.permissionPayload}
+            sessionId={currentSessionId}
+            onRespond={(result) => {
+              sendMessage({
+                type: 'permissions-response',
+                sessionId: currentSessionId,
+                requestId: message?.permissionPayload?.requestId as string,
+                result,
+              });
+            }}
+          />
         ) : message.type ===
           'tool_result' /* Tool result message - skip rendering as standalone, will be shown with tool use */ ? null : message.type ===
           'user' ? (
@@ -863,12 +886,67 @@ export const MessageComponent = memo<MessageComponentProps>(
                   {/* Tool Result Section - check if next message is a tool result */}
                   {nextMessage && nextMessage.type === 'tool_result' && (
                     <div className="mt-3 border-t border-blue-200 dark:border-blue-700 pt-3">
-                      <details className="group">
-                        <summary className="cursor-pointer list-none hover:opacity-80">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
+                      {/* Only show collapsible details if there's actual content */}
+                      {nextMessage.content && nextMessage.content.trim() ? (
+                        <details className="group">
+                          <summary className="cursor-pointer list-none hover:opacity-80">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <svg
+                                  className="w-4 h-4 transition-transform group-open:rotate-90 text-blue-600 dark:text-blue-400"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 5l7 7-7 7"
+                                  />
+                                </svg>
+                                <div
+                                  className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                                    nextMessage.isError
+                                      ? 'bg-red-500 dark:bg-red-600'
+                                      : 'bg-green-500 dark:bg-green-600'
+                                  }`}
+                                >
+                                  <svg
+                                    className="w-3 h-3 text-white"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    {nextMessage.isError ? (
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                      />
+                                    ) : (
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    )}
+                                  </svg>
+                                </div>
+                                <span
+                                  className={`text-sm font-medium ${
+                                    nextMessage.isError
+                                      ? 'text-red-700 dark:text-red-300'
+                                      : 'text-green-700 dark:text-green-300'
+                                  }`}
+                                >
+                                  {nextMessage.isError ? 'Tool Error' : 'Tool Result'}
+                                </span>
+                              </div>
                               <svg
-                                className="w-4 h-4 transition-transform group-open:rotate-90 text-blue-600 dark:text-blue-400"
+                                className="w-4 h-4 text-gray-400 group-open:hidden"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -877,76 +955,67 @@ export const MessageComponent = memo<MessageComponentProps>(
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                   strokeWidth={2}
-                                  d="M9 5l7 7-7 7"
+                                  d="M19 9l-7 7-7-7"
                                 />
                               </svg>
-                              <div
-                                className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                                  nextMessage.isError
-                                    ? 'bg-red-500 dark:bg-red-600'
-                                    : 'bg-green-500 dark:bg-green-600'
-                                }`}
-                              >
-                                <svg
-                                  className="w-3 h-3 text-white"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  {nextMessage.isError ? (
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M6 18L18 6M6 6l12 12"
-                                    />
-                                  ) : (
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M5 13l4 4L19 7"
-                                    />
-                                  )}
-                                </svg>
-                              </div>
-                              <span
-                                className={`text-sm font-medium ${
-                                  nextMessage.isError
-                                    ? 'text-red-700 dark:text-red-300'
-                                    : 'text-green-700 dark:text-green-300'
-                                }`}
-                              >
-                                {nextMessage.isError ? 'Tool Error' : 'Tool Result'}
-                              </span>
                             </div>
+                          </summary>
+                          <div
+                            className={`mt-2 text-sm rounded-lg p-3 ${
+                              nextMessage.isError
+                                ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
+                                : 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
+                            }`}
+                          >
+                            <pre className="whitespace-pre-wrap break-words font-mono text-xs">
+                              {nextMessage.content}
+                            </pre>
+                          </div>
+                        </details>
+                      ) : (
+                        /* Show simple non-collapsible result for empty content */
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                              nextMessage.isError
+                                ? 'bg-red-500 dark:bg-red-600'
+                                : 'bg-green-500 dark:bg-green-600'
+                            }`}
+                          >
                             <svg
-                              className="w-4 h-4 text-gray-400 group-open:hidden"
+                              className="w-3 h-3 text-white"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 9l-7 7-7-7"
-                              />
+                              {nextMessage.isError ? (
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              ) : (
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              )}
                             </svg>
                           </div>
-                        </summary>
-                        <div
-                          className={`mt-2 text-sm rounded-lg p-3 ${
-                            nextMessage.isError
-                              ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200'
-                              : 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200'
-                          }`}
-                        >
-                          <pre className="whitespace-pre-wrap break-words font-mono text-xs">
-                            {nextMessage.content}
-                          </pre>
+                          <span
+                            className={`text-sm font-medium ${
+                              nextMessage.isError
+                                ? 'text-red-700 dark:text-red-300'
+                                : 'text-green-700 dark:text-green-300'
+                            }`}
+                          >
+                            {nextMessage.isError ? 'Tool Error' : 'Tool completed with no output'}
+                          </span>
                         </div>
-                      </details>
+                      )}
                     </div>
                   )}
                 </div>

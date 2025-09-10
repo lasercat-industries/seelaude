@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { getSessionMessages, getLatestDescendant } from './claude/sessions';
 import { getProjects, getSessions } from './claude/projects';
 import { upgradeWebSocket } from 'hono/bun';
-import { spawnClaude, abortClaudeSession } from './claude/spawnClaude';
+import { spawnClaude, abortClaudeSession, handlePermissionResponse } from './claude/spawnClaudeNew';
 
 const PORT = process.env.PORT || 3000;
 const connectedClients = new Set();
@@ -45,6 +45,24 @@ export const ws = new Hono().get(
             console.log('📁 Project:', data.options?.projectPath || 'Unknown');
             console.log('🔄 Session:', data.options?.sessionId ? 'Resume' : 'New');
             await spawnClaude(data.command, data.options, ws);
+          } else if (data.type === 'permissions-response') {
+            console.log('🔒 Permissions response received:', JSON.stringify(data, null, 2));
+            // Route to the specific spawnClaude instance
+            const { sessionId, requestId, result } = data;
+            const { behavior, updatedInput, message, updatedPermissions } = result;
+
+            // Call the global handler
+            const handled = handlePermissionResponse(sessionId, requestId, {
+              behavior,
+              updatedInput,
+              updatedPermissions,
+              message,
+            });
+
+            if (!handled) {
+              console.error(`Failed to route permission response for session ${sessionId}`);
+            }
+            return; // Don't process further
           } else if (data.type === 'abort-session') {
             console.log('🛑 Abort session request:', data.sessionId);
             const provider = data.provider || 'claude';

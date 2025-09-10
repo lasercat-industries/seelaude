@@ -1,4 +1,76 @@
-import type { ToolName, PermissionMode } from '@lasercat/claude-code-sdk-ts';
+import type { PermissionResult, Options } from '@anthropic-ai/claude-code';
+import { ToolType } from './toolTypes';
+
+export interface TextBlock {
+  type: 'text';
+  text: string;
+}
+export interface ToolUseBlock {
+  type: 'tool_use';
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+}
+export interface ToolResultBlock {
+  type: 'tool_result';
+  tool_use_id: string;
+  content: string | Array<TextBlock | unknown>;
+  is_error?: boolean;
+}
+export type ContentBlock = TextBlock | ToolUseBlock | ToolResultBlock;
+export interface UserMessage {
+  type: 'user';
+  content: string;
+  session_id?: string;
+}
+export interface ToolResultMessage {
+  type: 'tool_result';
+  content: ToolResultBlock[] | string[];
+  session_id?: string;
+}
+export interface HookFeedbackMessage {
+  type: 'hook_feedback';
+  content: string[];
+  session_id?: string;
+}
+export interface AssistantMessage {
+  type: 'assistant';
+  content: ContentBlock[];
+  session_id?: string;
+}
+export interface SystemMessage {
+  type: 'system';
+  subtype?: string;
+  data?: unknown;
+  session_id?: string;
+}
+export interface ResultMessage {
+  type: 'result';
+  subtype?: string;
+  content: string;
+  session_id?: string;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
+  cost?: {
+    input_cost?: number;
+    output_cost?: number;
+    cache_creation_cost?: number;
+    cache_read_cost?: number;
+    total_cost?: number;
+  };
+}
+export type Message =
+  | UserMessage
+  | AssistantMessage
+  | SystemMessage
+  | ResultMessage
+  | ToolResultMessage
+  | HookFeedbackMessage;
+
 /**
  * Shared type definitions for Claude API data structures
  * These types are used across multiple modules that parse Claude's JSONL files
@@ -106,7 +178,7 @@ export interface SessionMessage {
 /**
  * Simplified message for tree analysis
  */
-export interface Message {
+export interface SimpleSessionMessage {
   text: string;
   uuid: string;
   parentUuid: string;
@@ -118,7 +190,7 @@ export interface Message {
  */
 export interface SessionData {
   sessionId: string | null;
-  messages: Message[];
+  messages: SimpleSessionMessage[];
   uuids: Set<string>;
   firstUserMessageUuid: string | null;
   filepath: string;
@@ -258,8 +330,8 @@ export function isNodeError(error: unknown): error is Error & { code?: string } 
   return error instanceof Error && 'code' in error;
 }
 export interface ToolsSettings {
-  allowedTools?: ToolName[];
-  disallowedTools?: ToolName[];
+  allowedTools?: ToolType[];
+  disallowedTools?: ToolType[];
   skipPermissions?: boolean;
 }
 
@@ -267,18 +339,17 @@ export interface ImageData {
   data: string; // base64 encoded image with data URL format (e.g., "data:image/png;base64,...")
 }
 
-export interface SpawnClaudeOptions {
-  sessionId?: string;
-  projectPath?: string; // Not used in refactored version but kept for API compatibility
-  cwd?: string;
-  resume?: boolean;
-  toolsSettings?: ToolsSettings;
-  permissionMode?: PermissionMode; // 'default' | 'acceptEdits' | 'bypassPermissions'
-  images?: ImageData[];
-}
-
 export type ClaudeCommandMessage = {
   type: 'claude-command';
   command: string;
-  options: SpawnClaudeOptions;
+  options: Options;
 };
+
+export type ClaudePermissionMessage = {
+  type: 'permissions-response';
+  sessionId: string;
+  requestId: string;
+  result: PermissionResult;
+};
+
+export * from './toolTypes';
